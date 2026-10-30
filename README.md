@@ -1,0 +1,103 @@
+# Py3bolos — BOLOS Translated to Python 3
+
+**This project is a Python 3 translation and port of the original Python 2 [BOLOS (bolos)](https://github.com/aluque/bolos) code developed by Alejandro Luque.** It is a derivative project, not an official release by the original author. Here, "translation" refers to converting the source code for Python 3 compatibility, rather than simply translating the documentation into another language.
+
+BOLOS is a Python library for solving the electron Boltzmann equation in nonthermal plasmas. It reads collision cross sections in a BOLSIG+-compatible format and calculates electron energy distributions, mean electron energy, electron mobility, diffusion coefficients, and reaction rate coefficients.
+
+## Original Project and Changes
+
+- Original project: [aluque/bolos](https://github.com/aluque/bolos)
+- Original author: Alejandro Luque (Instituto de Astrofísica de Andalucía, IAA-CSIC)
+- Original documentation: [BOLOS documentation](https://bolos.readthedocs.io/)
+- License: The original project's LGPLv2 designation is retained; see below.
+
+The main changes include Python 3 syntax, string and iterator handling, explicit relative imports, integration compatibility for recent SciPy versions, and numerical stability improvements. This project also includes a Japanese execution guide, notebooks, and validation scripts. It retains the original physical model and numerical approach, but identical results under all conditions are not guaranteed. See [PORTING_NOTES.md](PORTING_NOTES.md) for details.
+
+## Requirements and Installation
+
+`setup.py` specifies Python 3.10 or later. NumPy and SciPy are required for computation. Not every combination of Python and dependency versions has been tested.
+
+Run the following commands from the directory containing this README. A virtual environment is recommended.
+
+```console
+python -m pip install -e .
+```
+
+Install optional dependencies for plotting or notebooks as needed:
+
+```console
+python -m pip install -e ".[samples]"
+python -m pip install -e ".[notebook]"
+```
+
+To open the notebooks, install JupyterLab separately or use a compatible editor. `run_basic.py` is a marimo application and additionally requires `python -m pip install marimo`.
+
+**The import name is `bolos`, as in the original project.** The repository directory name, `Py3bolos-master`, differs from the internal package directory name, `bolos`. Check which source file is being imported with:
+
+```console
+python -c "from bolos import solver; print(solver.__file__)"
+```
+
+The output should point to `bolos/solver.py` inside this project. If you move or rename the project directory, run `python -m pip install -e .` again from its new location to update the editable installation.
+
+If ty reports `Cannot resolve imported module bolos`, first check the runtime import using the command above. If the runtime import succeeds but static analysis fails, configure ty to use the same virtual environment as your interpreter. If necessary, set `root = [".", "./Py3bolos-master"]` under `[environment]` in `ty.toml`. This example assumes that the parent of this project directory is the workspace root. If this project directory itself is the workspace root, use `root = ["."]` instead.
+
+## Basic Usage
+
+Collision cross-section data must be supplied separately. The following example assumes a BOLSIG+-compatible input file containing the required collision processes for N2 and O2. Replace `cross_sections.txt` with your input file.
+
+```python
+import scipy.constants as constants
+from bolos import grid, parser, solver
+
+with open("cross_sections.txt", encoding="utf-8") as stream:
+    collisions = parser.parse(stream)
+
+energy_grid = grid.LinearGrid(0.0, 100.0, 1000)
+boltzmann = solver.BoltzmannSolver(energy_grid)
+boltzmann.load_collisions(collisions)
+boltzmann.set_density("N2", 0.8)
+boltzmann.set_density("O2", 0.2)
+boltzmann.kT = 300.0 * constants.k / constants.eV
+boltzmann.EN = 100.0 * solver.TOWNSEND  # E/N = 100 Td
+boltzmann.init()
+
+distribution = boltzmann.converge(
+    boltzmann.maxwell(2.0), maxn=1000, rtol=1e-6
+)
+print("Mean energy [eV]:", boltzmann.mean_energy(distribution))
+print("Mobility * N [1/(m V s)]:", boltzmann.mobility(distribution))
+print("Diffusion coefficient * N [1/(m s)]:", boltzmann.diffusion(distribution))
+```
+
+Adjust the gas composition, gas temperature, reduced electric field, and energy grid for your application. Check convergence and sensitivity to the grid resolution and energy range.
+
+## Files and Validation
+
+| File or Directory | Description |
+| --- | --- |
+| `bolos/` | Python 3 computational library |
+| `samples/` | Computation and plotting examples |
+| `run_basic.ipynb` | Calculation notebook |
+| `run_basic.py` | Calculation example in marimo format |
+| [EXECUTION_GUIDE.md](EXECUTION_GUIDE.md) | Detailed Japanese execution guide, including paths for the original local environment |
+| [PORTING_NOTES.md](PORTING_NOTES.md) | Porting changes and limitations |
+| `validate_port.py` | Comparison with a runtime-adapted version of the original code and other numerical checks |
+| [VALIDATION.md](VALIDATION.md) / [validation_results.json](validation_results.json) | Existing validation records |
+| `docs/` | Sphinx documentation based on the original project |
+
+The existing validation covers a limited set of cases, including five electric-field conditions at approximately 1–2000 Td for N2:O2 = 80:20 at 300 K. It is not a direct comparison against execution in a Python 2 environment. Saved numerical results are records of earlier validation runs, not results reproduced using this directory alone.
+
+Some historical documentation and validation records refer to `run_phelps.ipynb`, which is not included in this distribution. Use `run_basic.ipynb` for the included notebook example and `validate_port.py` for the validation workflow.
+
+**Phelps cross-section data, BOLSIG+ comparison outputs, and the original source used for comparison are not included in this directory.** Existing notebooks and validation code refer to sibling directories such as `Phelps/` and `bolos-master/`. To reproduce the calculations, obtain the required data and original source separately and adjust the paths to match your directory layout. Use and redistribution of external cross-section data and comparison outputs are subject to the terms of their respective providers.
+
+## License and Acknowledgments
+
+This project retains the **LGPLv2** designation stated in the original BOLOS README and `setup.py`. The license referenced by the original project is the **GNU Library General Public License, version 2 (June 1991)**. Its complete official English text is included in [LICENSE.txt](LICENSE.txt).
+
+Retain the original author's copyright and attribution notices, and follow the license terms when modifying or redistributing the software. This derivative project does not imply endorsement or support by the original author. The software is provided without warranty, as specified in the license.
+
+We acknowledge Alejandro Luque, the original author of BOLOS, and the researchers and developers whose work underlies the software. The original project cites:
+
+G. J. M. Hagelaar and L. C. Pitchford, “Solving the Boltzmann equation to obtain electron transport coefficients and rate coefficients for fluid models,” *Plasma Sources Science and Technology*, **14** (2005), 722–733.
