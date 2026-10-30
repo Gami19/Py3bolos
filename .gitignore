@@ -26,3 +26,6 @@ env/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Local comparison script requiring the original BOLOS source
+/validate_port.py

@@ -1,8 +1,8 @@
 # BOLOS Python 3 翻訳版
 
-> 現在の配布物には、この文書で言及する過去の `run_phelps.ipynb` は含まれていません。付属の計算例は `run_basic.ipynb` と `run_basic.py`、検証には `validate_port.py` を使用してください。
+> 公開用の計算例は `run_basic.ipynb` です。入力データはリポジトリ直下の `Phelps/` を参照します。原版ソースおよび原版との比較スクリプト `validate_port.py` は公開対象に含めず、以下の検証内容は過去の開発記録として残しています。
 
-隣接する `bolos-master` の Python 2 コードをもとにした独立したコピーです。
+原版 BOLOS の Python 2 コードをもとにした独立したコピーです。
 元フォルダ・Phelps データは変更していません。元の著者表記と LGPLv2 の
 ライセンス指定を維持しています。公開 API、物理モデル、離散化、反復法、
 境界条件、断面積の補間方法は元コードを維持しています。
@@ -24,25 +24,20 @@
 
 ## インストールと実行
 
-作業ルート `Bolos_analysis` で PowerShell から実行します。
+リポジトリ直下で、使用する Python 環境から実行します。
 
 ```powershell
-& .\env_bolos_analysis\Scripts\python.exe -m pip install -e ".\Py3bolos-master[samples]"
-& .\env_bolos_analysis\Scripts\python.exe .\Py3bolos-master\validate_port.py
-& .\env_bolos_analysis\Scripts\python.exe .\Py3bolos-master\samples\single.py .\Phelps\Phelps_N2-O2_20261026.txt --en=100 --temp=300
+python -m pip install -e ".[notebook]"
+python .\samples\single.py .\Phelps\Phelps_N2-O2_20261026.txt --en=100 --temp=300
 ```
 
 通常の利用方法は元コードと同じ `from bolos import parser, solver, grid` です。
-実行用ノートブックは `run_phelps.ipynb` です。カーネルに
-`env_bolos_analysis/Scripts/python.exe` を選択して上から実行してください。
-電場・温度・混合比の設定、EEDF の描画、全反応速度の表示、BOLSIG+ 比較、
-任意の JSON 保存を含みます。実行には追加で `ipykernel` が必要です。
-Python の最低バージョン表記は 3.10 とし、実機での検証環境は結果 JSON に記録します。
-すべての Python 3 バージョンでの動作を検証したという意味ではありません。
+実行用ノートブックは `run_basic.ipynb` です。BOLOS をインストールした環境をカーネルに選択し、作業ディレクトリをリポジトリ直下にして上から実行してください。
+Python の最低バージョン表記は 3.10 とし、過去の検証環境は結果 JSON に記録しています。すべての Python 3 バージョンで動作を検証したという意味ではありません。
 
 ## 検証内容と限界
 
-`validate_port.py` は提供された Phelps 断面積 43 過程を読み込み、N2:O2=80:20、
+公開対象外のローカル比較スクリプト `validate_port.py` は、開発時に提供された Phelps 断面積 43 過程を読み込み、N2:O2=80:20、
 300 K で 1、10、100、1000、2000 Td 付近の BOLSIG+ 記録と同じ電場を使用します。
 500 セルの線形格子で初期収束後、上限を平均エネルギーの15倍とする400セルの
 二次格子で再収束させます。収束許容誤差は最終段で 1e-6 です。

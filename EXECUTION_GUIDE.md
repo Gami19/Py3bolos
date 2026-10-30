@@ -1,6 +1,6 @@
 # BOLOS Python 3 実行ガイド
 
-> 公開用フォルダの構成について：この文書内の `run_phelps.ipynb` は過去のノートブックで、現在の配布物には含まれていません。付属の計算例は `run_basic.ipynb` と `run_basic.py`、原版・BOLSIG+ との検証は `validate_port.py` を参照してください。以下の過去の手順・結果には、現在の付属計算例にはない機能も含まれます。
+> 公開用フォルダでは、断面積と BOLSIG+ 出力をリポジトリ直下の `Phelps/` に配置します。付属の実行用ノートブックは `run_basic.ipynb` です。原版ソースと比較スクリプト `validate_port.py` は公開対象に含めません。過去の検証結果は参考記録として残しています。文書中の `run_basic.py` は、ご自身で保存して使うコード例です。
 
 このガイドは、提供された Phelps の N₂・O₂ 断面積を使い、電子エネルギー分布関数（EEDF）、反応速度係数、輸送係数を計算するための説明です。
 
@@ -33,17 +33,15 @@ C:\Users\daiko\Documents\Python_venvSystem\3.14system\Bolos_analysis
 ```text
 Bolos_analysis/
 ├─ env_bolos_analysis/                  Python 仮想環境
-├─ Phelps/
-│  ├─ Phelps_N2-O2_20261026.txt         入力する断面積
-│  └─ N2-O2_80-20_2000Td.dat            比較用 BOLSIG+ 計算結果
-├─ bolos-master/                       元の Python 2 コード
-└─ Py3bolos-master/                      Python 3 翻訳版
+└─ Py3bolos-master/                     Python 3 翻訳版（リポジトリ）
    ├─ bolos/                           計算ライブラリ本体
+   ├─ Phelps/
+   │  ├─ Phelps_N2-O2_20261026.txt      入力する断面積
+   │  └─ N2-O2_80-20_2000Td.dat         BOLSIG+ 計算結果
    ├─ samples/
    │  ├─ single.py                     1条件を計算するサンプル
-   │  └─ bolsig.py                     BOLSIG+ との比較用サンプル
-   ├─ run_phelps.ipynb                 実行用ノートブック
-   ├─ validate_port.py                移植版の検証スクリプト
+   │  └─ bolsig.py                     数値表形式の BOLSIG+ 出力との比較
+   ├─ run_basic.ipynb                  実行用ノートブック
    └─ EXECUTION_GUIDE.md               このガイド
 ```
 
@@ -52,7 +50,7 @@ Bolos_analysis/
 | 実行方法 | 入力・条件の与え方 | 用途 |
 |---|---|---|
 | `samples/single.py` | コマンドの末尾にファイル名、`--en`、`--temp` を指定 | 1条件をすぐに計算する |
-| `run_phelps.ipynb` | セル内の変数を変更 | 計算過程・図・表を順に確認する |
+| `run_basic.ipynb` | セル内の変数を変更 | 計算過程・図・表を順に確認する |
 | 自分で書く実行プログラム | Python 変数またはコマンドライン引数 | 条件走査や結果保存を組み込む |
 
 `Phelps_N2-O2_20261026.txt` は衝突断面積です。`N2-O2_80-20_2000Td.dat` は BOLSIG+ の計算済み出力で、断面積入力には使用しません。
@@ -110,13 +108,13 @@ python -m pip install -e ".\Py3bolos-master[notebook]"
 ### 3.1 そのまま実行できるコマンド
 
 ```powershell
-python .\Py3bolos-master\samples\single.py .\Phelps\Phelps_N2-O2_20261026.txt --en=100 --temp=300
+python .\Py3bolos-master\samples\single.py .\Py3bolos-master\Phelps\Phelps_N2-O2_20261026.txt --en=100 --temp=300
 ```
 
 または、Python 実行ファイルを明示します。
 
 ```powershell
-& .\env_bolos_analysis\Scripts\python.exe .\Py3bolos-master\samples\single.py .\Phelps\Phelps_N2-O2_20261026.txt --en=100 --temp=300
+& .\env_bolos_analysis\Scripts\python.exe .\Py3bolos-master\samples\single.py .\Py3bolos-master\Phelps\Phelps_N2-O2_20261026.txt --en=100 --temp=300
 ```
 
 各部分の意味は次のとおりです。
@@ -138,7 +136,7 @@ python .\Py3bolos-master\samples\single.py .\Phelps\Phelps_N2-O2_20261026.txt --
 200 Td・300 K で計算する例です。
 
 ```powershell
-python .\Py3bolos-master\samples\single.py .\Phelps\Phelps_N2-O2_20261026.txt --en=200 --temp=300
+python .\Py3bolos-master\samples\single.py .\Py3bolos-master\Phelps\Phelps_N2-O2_20261026.txt --en=200 --temp=300
 ```
 
 `single.py` の混合比はコード中で N₂ = 0.8、O₂ = 0.2 に固定されています。混合比を変える場合は該当行を編集するか、ノートブックを使用してください。
@@ -152,7 +150,7 @@ python .\Py3bolos-master\samples\single.py --help
 `--debug` を付けると、反復計算などの詳細ログが表示されます。
 
 ```powershell
-python .\Py3bolos-master\samples\single.py .\Phelps\Phelps_N2-O2_20261026.txt --en=100 --temp=300 --debug
+python .\Py3bolos-master\samples\single.py .\Py3bolos-master\Phelps\Phelps_N2-O2_20261026.txt --en=100 --temp=300 --debug
 ```
 
 ### 3.3 エディタの実行ボタンとの関係
@@ -171,29 +169,31 @@ the following arguments are required: input
 
 このサンプルは `np.loadtxt()` で読み込める数値表を想定し、実際のコードでは第2列を電場、第4列以降を各過程の速度係数として参照しています。
 
-提供された `N2-O2_80-20_2000Td.dat` は説明行・条件・EEDF などを含むブロック形式なので、このサンプルに直接渡す形式とは異なります。提供データとの比較には、形式に対応した `run_phelps.ipynb` または `validate_port.py` を使用してください。
+提供された `N2-O2_80-20_2000Td.dat` は説明行・条件・EEDF などを含むブロック形式なので、このサンプルに直接渡す形式とは異なります。このブロック形式を扱う原版比較スクリプトはローカル専用で、公開対象から除外しています。
 
 ## 4. ノートブックを実行する
 
-1. `Py3bolos-master/run_phelps.ipynb` を開きます。
-2. カーネルに `env_bolos_analysis/Scripts/python.exe` に対応する Python 環境を選択します。
-3. 最初のセルで表示される Python と `Solver` のパスを確認します。
-4. 「1. 実行条件」のセルで値を設定します。
-5. 上から順番に全セルを実行します。
+1. `Py3bolos-master/run_basic.ipynb` を開きます。
+2. カーネルに、BOLOS をインストールした Python 環境を選択します。
+3. ノートブックの作業ディレクトリをリポジトリ直下に設定します。`Path.cwd()` が `bolos/` と `Phelps/` のあるフォルダを指すことを確認してください。
+4. 最初のセルから上から順番に実行します。
 
-ターミナルの仮想環境と、ノートブックのカーネルは別に選択されます。ターミナルに `(env_bolos_analysis)` と表示されていても、ノートブックで同じ Python を使っているか確認してください。
-
-主に変更する変数は次のとおりです。
+ターミナルの仮想環境と、ノートブックのカーネルは別に選択されます。入力パスは次の形です。
 
 ```python
-EN_Td = 100.0
-gas_temperature_K = 300.0
-fractions = {"N2": 0.8, "O2": 0.2}
+script_dir = Path.cwd()
+input_file = script_dir / "Phelps" / "Phelps_N2-O2_20261026.txt"
 ```
 
-混合比の合計は 1 にします。条件を変更した後は、そのセル以降を再実行してください。変数だけ書き換えても、以前のセルで計算した結果は自動更新されません。
+付属ノートブックでは、主に次の変数を変更します。
 
-このノートブックは、作業ディレクトリが `Bolos_analysis` または `Py3bolos-master` の場合にパスを解決する構成です。パスに関するエラーが出たら、最初のセルの `Path.cwd()` の値を確認してください。
+```python
+en_td_values = np.linspace(200.0, 1000.0, 9)
+gas_temperature_k = 300.0
+fractions = {"N2": 0.6, "O2": 0.4}
+```
+
+混合比の合計は 1 にします。条件を変更した後は、そのセル以降を再実行してください。以下の文書にある単一条件のコード例や過去の検証記録とは設定が異なる場合があります。
 
 ## 5. 基本的な実行プログラム
 
@@ -235,7 +235,7 @@ def main():
     # 1. 入力ファイルと計算条件
     # このプログラムを Py3bolos-master 直下に保存した場合のパスです。
     script_dir = Path(__file__).resolve().parent
-    input_file = script_dir.parent / "Phelps" / "Phelps_N2-O2_20261026.txt"
+    input_file = script_dir / "Phelps" / "Phelps_N2-O2_20261026.txt"
 
     en_td = 100.0
     gas_temperature_k = 300.0
@@ -618,7 +618,7 @@ python -c "import sys; print(sys.executable)"
 
 ```powershell
 Get-Location
-Test-Path .\Phelps\Phelps_N2-O2_20261026.txt
+Test-Path .\Py3bolos-master\Phelps\Phelps_N2-O2_20261026.txt
 ```
 
 `Test-Path` が `False` の場合は、作業フォルダまたは指定パスを修正します。
@@ -669,29 +669,14 @@ print(list(bsolver.target))
 
 ## 11. 検証の再実行と関連資料
 
-検証に必要な追加ライブラリを含めてインストールする場合は次の形式です。
+`VALIDATION.md` と `validation_results.json` は過去の検証記録です。原版を必要とするローカル比較スクリプト `validate_port.py` は `.gitignore` で除外されており、原版ソースも公開リポジトリには含めていません。そのため、公開ファイルだけで原版との比較を再実行する構成ではありません。
 
-```powershell
-python -m pip install -e ".\Py3bolos-master[validation]"
-```
-
-移植版の検証を再実行します。
-
-```powershell
-python .\Py3bolos-master\validate_port.py
-```
-
-Phelps の43過程、N₂:O₂=80:20、300 K について、約1・10・100・1000・2000 Td の5条件を調べます。比較対象の BOLSIG+ 記録に合わせるため、実際の電場は例えば99.914 Tdなどになります。
-
-結果は `validation_results.json` に保存され、再実行すると上書きされます。
-
-原版との比較は、Python 2 固有の実行操作だけを互換化して原版の計算を Python 3 上で実行する方式です。実際の Python 2 環境との直接比較ではありません。また、BOLSIG+ との比較には、格子・実装・設定の差が含まれます。
+過去の検証では、Phelps の43過程、N₂:O₂=80:20、300 K で約1・10・100・1000・2000 Td の5条件を比較しました。原版の Python 2 固有の実行操作を互換化し、Python 3 上で計算する方式です。実際の Python 2 環境との直接比較ではありません。通常の計算に原版ソースは不要です。
 
 関連ファイル：
 
-- [付属の基本計算ノートブック](run_basic.ipynb)（過去の `run_phelps.ipynb` とは内容が異なります）
+- [付属の基本計算ノートブック](run_basic.ipynb)
 - [既存の1条件計算サンプル](samples/single.py)
 - [移植内容と制約](PORTING_NOTES.md)
-- [検証結果の説明](VALIDATION.md)
-- [詳細な検証結果](validation_results.json)
-- [再実行できる検証スクリプト](validate_port.py)
+- [過去の検証結果の説明](VALIDATION.md)
+- [過去の詳細な検証結果](validation_results.json)

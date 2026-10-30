@@ -11,7 +11,7 @@ BOLOS is a Python library for solving the electron Boltzmann equation in nonther
 - Original documentation: [BOLOS documentation](https://bolos.readthedocs.io/)
 - License: The original project's LGPLv2 designation is retained; see below.
 
-The main changes include Python 3 syntax, string and iterator handling, explicit relative imports, integration compatibility for recent SciPy versions, and numerical stability improvements. This project also includes a Japanese execution guide, notebooks, and validation scripts. It retains the original physical model and numerical approach, but identical results under all conditions are not guaranteed. See [PORTING_NOTES.md](PORTING_NOTES.md) for details.
+The main changes include Python 3 syntax, string and iterator handling, explicit relative imports, integration compatibility for recent SciPy versions, and numerical stability improvements. This project also includes a Japanese execution guide, a notebook, and historical validation records. It retains the original physical model and numerical approach, but identical results under all conditions are not guaranteed. See [PORTING_NOTES.md](PORTING_NOTES.md) for details.
 
 ## Requirements and Installation
 
@@ -30,7 +30,7 @@ python -m pip install -e ".[samples]"
 python -m pip install -e ".[notebook]"
 ```
 
-To open the notebooks, install JupyterLab separately or use a compatible editor. `run_basic.py` is a marimo application and additionally requires `python -m pip install marimo`.
+To open `run_basic.ipynb`, install JupyterLab separately or use a compatible editor. Select the Python environment in which you installed this project and use the repository root as the notebook's working directory.
 
 **The import name is `bolos`, as in the original project.** The repository directory name, `Py3bolos-master`, differs from the internal package directory name, `bolos`. Check which source file is being imported with:
 
@@ -44,13 +44,13 @@ If ty reports `Cannot resolve imported module bolos`, first check the runtime im
 
 ## Basic Usage
 
-Collision cross-section data must be supplied separately. The following example assumes a BOLSIG+-compatible input file containing the required collision processes for N2 and O2. Replace `cross_sections.txt` with your input file.
+Run the following example from the repository root. It uses the BOLSIG+-compatible N2/O2 collision cross-section file in `Phelps/`. Replace the input path if you use a different dataset.
 
 ```python
 import scipy.constants as constants
 from bolos import grid, parser, solver
 
-with open("cross_sections.txt", encoding="utf-8") as stream:
+with open("Phelps/Phelps_N2-O2_20261026.txt", encoding="utf-8") as stream:
     collisions = parser.parse(stream)
 
 energy_grid = grid.LinearGrid(0.0, 100.0, 1000)
@@ -77,20 +77,33 @@ Adjust the gas composition, gas temperature, reduced electric field, and energy 
 | File or Directory | Description |
 | --- | --- |
 | `bolos/` | Python 3 computational library |
+| `Phelps/` | N2/O2 collision cross sections and BOLSIG+ comparison output |
 | `samples/` | Computation and plotting examples |
 | `run_basic.ipynb` | Calculation notebook |
-| `run_basic.py` | Calculation example in marimo format |
 | [EXECUTION_GUIDE.md](EXECUTION_GUIDE.md) | Detailed Japanese execution guide, including paths for the original local environment |
 | [PORTING_NOTES.md](PORTING_NOTES.md) | Porting changes and limitations |
-| `validate_port.py` | Comparison with a runtime-adapted version of the original code and other numerical checks |
 | [VALIDATION.md](VALIDATION.md) / [validation_results.json](validation_results.json) | Existing validation records |
 | `docs/` | Sphinx documentation based on the original project |
 
 The existing validation covers a limited set of cases, including five electric-field conditions at approximately 1–2000 Td for N2:O2 = 80:20 at 300 K. It is not a direct comparison against execution in a Python 2 environment. Saved numerical results are records of earlier validation runs, not results reproduced using this directory alone.
 
-Some historical documentation and validation records refer to `run_phelps.ipynb`, which is not included in this distribution. Use `run_basic.ipynb` for the included notebook example and `validate_port.py` for the validation workflow.
+Some historical documentation and validation records refer to `run_phelps.ipynb`, which is not included in this distribution. Use `run_basic.ipynb` for the included notebook example.
 
-**Phelps cross-section data, BOLSIG+ comparison outputs, and the original source used for comparison are not included in this directory.** Existing notebooks and validation code refer to sibling directories such as `Phelps/` and `bolos-master/`. To reproduce the calculations, obtain the required data and original source separately and adjust the paths to match your directory layout. Use and redistribution of external cross-section data and comparison outputs are subject to the terms of their respective providers.
+**The original BOLOS source and the local comparison script `validate_port.py` are not included in this distribution.** The comparison script requires a separate copy of the original source and is excluded from version control via `.gitignore`. The notebook and standard calculation examples do not require the original source. Historical validation records are retained for reference.
+
+The repository uses the following layout:
+
+```text
+Py3bolos/
+├── bolos/
+├── Phelps/
+│   ├── Phelps_N2-O2_20261026.txt
+│   └── N2-O2_80-20_2000Td.dat
+├── samples/
+└── run_basic.ipynb
+```
+
+Cross-section data and BOLSIG+ output in `Phelps/` are separate from the BOLOS source license. Their use and redistribution are subject to the terms of their respective providers.
 
 ## License and Acknowledgments
 
