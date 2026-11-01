@@ -44,14 +44,14 @@ class Grid:
     likewise inherit from MappedGrid instead.
     """
 
-    b: FloatArray
-    c: FloatArray
-    d: FloatArray
-    d32: FloatArray
-    n: int
-    x0: float
-    x1: float
-    delta: float
+    b: FloatArray # energy of cell boundaries
+    c: FloatArray # energy of cell centers
+    d: FloatArray # cell widths
+    d32: FloatArray # differences of boundary energies raised to 3/2
+    n: int # number of cells
+    x0: float # minimum energy
+    x1: float # maximum energy
+    delta: float # x1 - x0
 
     def __init__(self, boundaries: ArrayLike) -> None:
         """Create a grid from strictly increasing energy boundaries.
@@ -61,9 +61,10 @@ class Grid:
                 boundary energies. At least two boundaries are required.
 
         Raises:
-            ValueError: If the boundaries are not one-dimensional, contain
-                fewer than two values, contain non-finite or negative values,
-                or are not strictly increasing.
+            ValueError:
+            1. If the boundaries are not one-dimensional,
+            2. If the boundaries contain fewer than two values, contain non-finite or negative values,
+            3. If the boundaries are not strictly increasing.
         """
         self.b = np.array(boundaries, dtype=np.float64, copy=True)
         if self.b.ndim != 1 or self.b.size < 2:
@@ -73,7 +74,7 @@ class Grid:
         if np.any(np.diff(self.b) <= 0):
             raise ValueError("Energy boundaries must be strictly increasing.")
 
-        self.n = self.b.size - 1
+        self.n = self.b.size - 1 # number of cells is one less than number of boundaries
         self.x0 = float(self.b[0])
         self.x1 = float(self.b[-1])
         self.delta = self.x1 - self.x0
@@ -86,6 +87,12 @@ class Grid:
 
         Endpoint samples extend to the source boundaries; outside values are
         zero. Rebuild on every call because the source EEDF or grid can change.
+
+        Args:
+            f (ArrayLike): EEDF values on the source grid's centers.
+            other (Grid): The source grid.
+        Returns:
+            FloatArray: Interpolated EEDF values on this grid's centers.
         """
         values = np.asarray(f, dtype=np.float64)
         if values.shape != (other.n,):
@@ -99,14 +106,23 @@ class Grid:
         return np.asarray(interpolator(self.c), dtype=np.float64)
 
     def cell(self, x: float) -> int:
-        """Return the cell containing x, including x1 in the final cell.
+        """ Search for the cell containing a given energy.
+        Return the cell containing x, including x1 in the final cell.
 
         Internal boundaries belong to the cell on their right. Out-of-range
         and nonfinite energies raise ValueError. No analytic mapping is needed.
+
+        Args:
+            x (float): Energy in eV.
+        Returns:
+            int: Index of the cell containing x, in the range [0, n-1].
+        Raises:
+            ValueError: If x is not finite or outside the grid's energy range.
         """
         if not np.isfinite(x) or not self.x0 <= x <= self.x1:
             raise ValueError("Energy is outside the grid.")
         index = int(np.searchsorted(self.b, x, side="right")) - 1
+        # Clamp to the valid range [0, n-1] to handle x == x1.
         return max(0, min(index, self.n - 1))
 
 
@@ -118,6 +134,7 @@ class MappedGrid(Grid, ABC):
     must set them before calling this initializer.
     """
 
+    # Transformed energy boundaries
     fx0: float
     fx1: float
     df: float
@@ -157,7 +174,18 @@ class MappedGrid(Grid, ABC):
 
 
 class LinearGrid(MappedGrid):
-    """A grid with constant cell widths."""
+    """A grid with constant cell widths.
+
+    Cell boundaries:
+        x_i = x0 + i * delta / n
+        for i = 0, ..., n.
+
+    Cell widths:
+        dx_i = delta / n
+        for i = 0, ..., n-1.
+
+    where delta = x1 - x0.
+    """
 
     def f(self, x: EnergyValue) -> EnergyValue:
         return x
@@ -167,7 +195,18 @@ class LinearGrid(MappedGrid):
 
 
 class QuadraticGrid(MappedGrid):
-    """A grid whose cell widths increase linearly with cell index."""
+    """A grid whose cell widths increase linearly with cell index.
+
+    Cell boundaries:
+        x_i = x0 + (i/n)**2 * delta
+        for i = 0, ..., n.
+
+    Cell widths:
+        dx_i = (2*i + 1) * delta / n**2
+        for i = 0, ..., n-1.
+
+    where delta = x1 - x0.
+    """
 
     def f(self, x: EnergyValue) -> EnergyValue:
         return np.sqrt(x - self.x0)
@@ -177,9 +216,23 @@ class QuadraticGrid(MappedGrid):
 
 
 class GeometricGrid(MappedGrid):
-    """A grid with each cell r times as wide as the preceding one.
+    """A grid with geometrically varying cell widths.
 
-    r must be positive and different from one; use LinearGrid for equal widths.
+    Each cell is r times as wide as the preceding cell.
+
+    Cell widths:
+        dx_i = delta * (r - 1) * r**i / (r**n - 1)
+        for i = 0, ..., n-1.
+
+    Cell boundaries:
+        x_i = x0 + delta * (r**i - 1) / (r**n - 1)
+        for i = 0, ..., n.
+
+    where delta = x1 - x0.
+
+    The width ratio r must be positive and different from one.
+    For r > 1, cell widths increase; for 0 < r < 1, they decrease.
+    Use LinearGrid for equal cell widths.
     """
 
     def __init__(self, x0: float, x1: float, n: int, r: float = 1.1) -> None:
@@ -200,7 +253,23 @@ class GeometricGrid(MappedGrid):
 class LogGrid(MappedGrid):
     """A pseudo-logarithmic grid with positive offset s to avoid log(0).
 
-    Spacing is approximately logarithmic when x - x0 is much larger than s.
+    Coordinate mapping:
+        w = ln(s + x - x0)
+
+    Cell boundaries:
+        x_i = x0 + s * ((1 + delta/s)**(i/n) - 1)
+        for i = 0, ..., n.
+
+    Cell widths:
+        dx_i = s * (1 + delta/s)**(i/n) * ((1 + delta/s)**(1/n) - 1)
+        for i = 0, ..., n-1.
+
+    where delta = x1 - x0 and s > 0.
+
+    Cell widths increase geometrically with the ratio
+        r = (1 + delta/s)**(1/n).
+
+    A larger s produces a grid closer to uniform spacing.
     """
 
     def __init__(self, x0: float, x1: float, n: int, s: float = 10.0) -> None:
@@ -217,10 +286,28 @@ class LogGrid(MappedGrid):
 
 
 class AutomaticGrid(Grid):
-    """Redistribute boundaries to give roughly equal population per cell.
+    """Redistribute grid boundaries to approximately equalize EEDF population.
 
-    f0 is an EEDF on grid. The cell count is preserved. delta is retained for
-    call compatibility but, as in the original implementation, is unused.
+    Cell weights:
+        p_i = f0_i * (b_{i+1}**1.5 - b_i**1.5)
+        for i = 0, ..., n-1.
+
+    Normalized cumulative population:
+        P_j = sum(p_i, i=0..j-1) / sum(p_i, i=0..n-1)
+        for j = 0, ..., n.
+
+    New cell boundaries:
+        x_j = inverse_interp(P, b, j/n)
+        for j = 0, ..., n.
+
+    where b is the original grid boundary array and f0 is
+    the EEDF evaluated on the original grid.
+
+    The number of cells and the original energy range are preserved.
+    Zero-population plateaus are handled during inverse interpolation.
+
+    The parameter delta is retained for backward compatibility
+    but is not used.
     """
 
     def __init__(self, grid: Grid, f0: ArrayLike, delta: float = 1e-4) -> None:
