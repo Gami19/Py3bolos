@@ -17,10 +17,11 @@
 - 文書設定の除算用特殊メソッドを Python 3 形式に変更。
 - サンプルの LaTeX 文字列を raw 文字列に変更。
 - `setup.py` の Python 対応表記を変更し、ビルド設定 `pyproject.toml` を追加。
-- 廃止された `scipy.integrate.simps` の代わりに `bolos/_compat.py` を追加。
-  元の既定値 `even='avg'`（偶数個の点では左右の台形補正を平均）を維持。
-  現在の `simpson` への単純置換による計算結果の変化を避けています。
-  この互換関数は BOLOS が利用する一次元配列に限定しています。
+- 数値積分は `scipy.integrate.simpson` を直接使用。
+  現行の偶数点での端点補正を使うため、SciPy 1.11 以上を必要とします。
+  移植時に追加した旧 `simps(..., even='avg')` 用の `bolos/_compat.py` は、
+  2026-11-03に削除しました。旧方式との数値的一致は維持しません。
+  以下の過去の検証記録と `validation_results.json` は旧積分方式の結果です。
 
 ## インストールと実行
 

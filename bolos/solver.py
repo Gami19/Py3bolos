@@ -28,7 +28,7 @@ import numpy as np
 # The scipy.constants contains the recommended CODATA for all physical
 # constants in SI units.
 import scipy.constants as co
-from ._compat import simps
+from scipy.integrate import simpson
 from scipy import sparse
 from scipy.sparse.linalg import spsolve
 
@@ -610,7 +610,7 @@ class BoltzmannSolver(object):
 
 
     def _norm(self, f):
-        return simps(f * np.sqrt(self.cenergy), x=self.cenergy)
+        return simpson(f * np.sqrt(self.cenergy), x=self.cenergy)
         
         # return np.sum(f * np.sqrt(self.cenergy) * self.denergy)
 
@@ -799,7 +799,7 @@ class BoltzmannSolver(object):
         y = np.zeros_like(self.benergy)
         y[1:] = DF0[1:] * self.benergy[1:] / sigma_tilde
 
-        return -(GAMMA / 3) * simps(y, x=self.benergy)
+        return -(GAMMA / 3) * simpson(y, x=self.benergy)
 
 
     def diffusion(self, F0):
@@ -835,7 +835,7 @@ class BoltzmannSolver(object):
 
         y = F0 * self.cenergy / sigma_tilde
 
-        return (GAMMA / 3) * simps(y, x=self.cenergy)
+        return (GAMMA / 3) * simpson(y, x=self.cenergy)
 
 
     def mean_energy(self, F0):
