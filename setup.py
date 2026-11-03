@@ -53,7 +53,7 @@ setup(
         'notebook': ['matplotlib', 'ipykernel'],
         'validation': ['matplotlib', 'ipykernel', 'nbclient'],
     },
-    install_requires = ['numpy', 'scipy'],
+    install_requires = ['numpy', 'scipy>=1.11'],
 
     # If there are data files included in your packages that need to be
     # installed, specify them here.  If using Python 2.6 or less, then these
