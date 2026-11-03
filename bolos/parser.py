@@ -11,7 +11,7 @@ import numpy as np
 
 
 def parse(fp):
-    r"""Parse processes from a BOLSIG+-compatible cross-section file.
+    r"""Parse processes from a LXCat cross-section file.
 
     Parameters
     ----------
@@ -57,11 +57,13 @@ def parse(fp):
     for line in fp:
         try:
             key = line.strip()
+            # Get the kind of process., ex. "EXCITATION" -> _read_excitation
             fread = KEYWORDS[key]
 
             # If the key is not found, we do not reach this line.
             logging.debug("New process of type '%s'", key)
 
+            # call the reader for corresponding process type., ex. _read_excitation(fp)
             d = fread(fp)
             d['kind'] = key
             processes.append(d)
