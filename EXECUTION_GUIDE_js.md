@@ -42,7 +42,7 @@ Bolos_analysis/
    │  ├─ single.py                     1条件を計算するサンプル
    │  └─ bolsig.py                     数値表形式の BOLSIG+ 出力との比較
    ├─ run_basic.ipynb                  実行用ノートブック
-   └─ EXECUTION_GUIDE.md               このガイド
+   └─ EXECUTION_GUIDE_js.md            このガイド
 ```
 
 `bolos/solver.py` は計算ライブラリです。通常は、このファイルを直接実行するのではなく、`single.py` などの実行プログラムから読み込みます。

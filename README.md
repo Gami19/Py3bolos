@@ -11,7 +11,7 @@ BOLOS is a Python library for solving the electron Boltzmann equation in nonther
 - Original documentation: [BOLOS documentation](https://bolos.readthedocs.io/)
 - License: The original project's LGPLv2 designation is retained; see below.
 
-The main changes include Python 3 syntax, string and iterator handling, explicit relative imports, integration compatibility for recent SciPy versions, and numerical stability improvements. This project also includes a Japanese execution guide, a notebook, and historical validation records. It retains the original physical model and numerical approach, but identical results under all conditions are not guaranteed. See [PORTING_NOTES.md](PORTING_NOTES.md) for details.
+The main changes include Python 3 syntax, string and iterator handling, explicit relative imports, integration compatibility for recent SciPy versions, and numerical stability improvements. This project also includes Japanese and English execution guides, a notebook, and historical validation records. It retains the original physical model and numerical approach, but identical results under all conditions are not guaranteed. See [PORTING_NOTES.md](PORTING_NOTES.md) for details.
 
 ## Requirements and Installation
 
@@ -82,7 +82,8 @@ Adjust the gas composition, gas temperature, reduced electric field, and energy 
 | `run_basic.ipynb` | Calculation notebook |
 | [validate_bolsig.ipynb](validate_bolsig.ipynb) | Executed EEDF, reaction-rate, and transport comparison against the included BOLSIG+ export |
 | `validation/bolsig_comparison/` | Generated comparison tables, figures, and provenance metadata |
-| [EXECUTION_GUIDE.md](EXECUTION_GUIDE.md) | Detailed Japanese execution guide, including paths for the original local environment |
+| [EXECUTION_GUIDE_EN.md](EXECUTION_GUIDE_EN.md) | Detailed English execution guide |
+| [EXECUTION_GUIDE_js.md](EXECUTION_GUIDE_js.md) | Detailed Japanese execution guide, including paths for the original local environment |
 | [PORTING_NOTES.md](PORTING_NOTES.md) | Porting changes and limitations |
 | [VALIDATION.md](VALIDATION.md) / [validation_results.json](validation_results.json) | Existing validation records |
 | `docs/` | Sphinx documentation based on the original project |
