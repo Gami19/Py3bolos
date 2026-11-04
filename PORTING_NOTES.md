@@ -61,5 +61,35 @@ BOLSIG+ は独立した実装・格子・設定を持つため、差は翻訳誤
 旧版との完全一致は要求せず、輸送係数の相対差1e-7、反応速度係数1e-4
 （絶対許容差1e-28 m³/s）、EEDFは相対1e-6・ピーク値の1e-7の絶対差で比較します。
 裾の相対誤差だけでは評価せず、独立積分7ケースと新実装の RuntimeWarning 不在も検証します。
-例えば非弾性過程がまったくない場合の空配列処理など、原版の制約は残っています。
+非弾性過程や成長過程がない場合の空配列処理は、2026-11-04に修正しました。
 文書の Sphinx ビルドと BOLSIG+ 比較用プロットサンプルの全実行は検証対象外です。
+
+## 2026-11-04 コード整理
+
+- 反応速度は疎行列を密配列へ変換せず、衝突区間ごとの寄与を直接集計します。
+- 空の反応集合ではゼロ行列を返し、弾性衝突のみの計算や、電離・付着がない場合の輸送係数計算に対応しました。
+- EFFECTIVE→ELASTIC 変換後も、反応種別辞書と属性が同じリストを参照するよう修正しました。
+- `__all__` の `parse` を `parser` に修正しました。
+- 断面積表は float64 の非空2列配列とし、有限・非負・エネルギーの厳密な昇順を検証します。未整列・重複エネルギーは自動補正せず `ValueError` とします。パーサーは1行の表も二次元で返します。
+- 格子の線形補間を `numpy.interp` に置換しました。断面積の `padinterp` は、補間オブジェクトと範囲外エラーの互換性を保つため `interp1d` を維持します。
+- 型注釈、パーサーの `TypedDict`、プロパティ、モジュール単位の logger を整備し、列挙処理を共通化しました。未使用の import・内部属性・コメントアウトされた旧処理を削除しました。
+- `NullProcess` 本体、`weighted_elastic`、互換性用引数は維持します。衝突積分の安定化・離散化・境界条件・Simpson 積分方式も維持します。
+
+回帰テストはリポジトリ直下で次のように実行します。
+
+```console
+python -m unittest discover -s tests -v
+```
+
+## NumPy 形式の docstring とコードスタイル
+
+`bolos/` の全モジュール・クラス・関数・メソッドに NumPy 形式の docstring と実行可能な Examples を整備しました。引数・返り値・例外・単位・キャッシュの前提を記載し、従来スキップしていた例も単独実行可能にしています。Examples は `tests/test_docstrings.py` により通常の unittest 実行でも検証します。プロパティの setter の例も検証対象です。
+
+`pyproject.toml` に `bolos/` を対象とする Ruff 設定を追加しました。コードは79文字、説明文・コメントは72文字を上限とし、import 順序、空白、インデント、NumPy 形式の docstring を検査します。開発環境に `ruff` と `pycodestyle` をインストールしたうえで、リポジトリ直下から実行できます。
+
+```console
+ruff check .
+ruff format --check bolos
+pycodestyle bolos --max-line-length=79 --max-doc-length=72
+python -m unittest discover -s tests -v
+```
