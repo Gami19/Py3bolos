@@ -1,4 +1,4 @@
-import logging
+"""Collision processes and numerical helpers for cross-section data."""
 
 import numpy as np
 from scipy.interpolate import interp1d
@@ -8,26 +8,83 @@ _QUAD_X, _QUAD_W = np.polynomial.legendre.leggauss(8)
 
 
 class Process(object):
-    # The factor of in-scatering.  
-    IN_FACTOR = {'EXCITATION': 1,
-                 'IONIZATION': 2,
-                 'ATTACHMENT': 0,
-                 'ELASTIC': 1,
-                 'MOMENTUM': 1,
-                 'EFFECTIVE': 1}
+    """Represent a collision process and its cross section.
 
-    # The shift factor for inelastic collisions. 
-    SHIFT_FACTOR = {'EXCITATION': 1,
-                    'IONIZATION': 2,
-                    'ATTACHMENT': 1,
-                    'ELASTIC': 1,
-                    'MOMENTUM': 1,
-                    'EFFECTIVE': 1}
+    Parameters
+    ----------
+    target : str or None, optional
+        Name of the collision target.
+    kind : str or None, optional
+        Process type, such as ``'ELASTIC'`` or ``'EXCITATION'``.
+    data : array-like
+        Two-column table containing energy in eV and cross section values.
+    comment : str, optional
+        Free-form description of the process.
+    mass_ratio : float or None, optional
+        Projectile-to-target mass ratio.
+    product : str or None, optional
+        Product species for processes that create one.
+    threshold : float, optional
+        Energy shift in eV used for inelastic collisions.
+    weight_ratio : float or None, optional
+        Statistical weight ratio associated with the process.
 
-                 
+    Attributes
+    ----------
+    x, y : numpy.ndarray
+        Energy and cross-section columns from ``data``.
+    interp : callable
+        Linear cross-section interpolator with constant endpoint
+        extrapolation.
+    isnull : bool
+        Whether this is a regular process (always ``False`` here).
+
+    Examples
+    --------
+    >>> process = Process(
+    ...     target="Ar", kind="ELASTIC",
+    ...     data=[[0.0, 1.0e-20], [10.0, 2.0e-20]],
+    ... )
+    >>> process.x.tolist()
+    [0.0, 10.0]
+    """
+
+    # The factor of in-scattering.
+    IN_FACTOR = {
+        'EXCITATION': 1,
+        'IONIZATION': 2,
+        'ATTACHMENT': 0,
+        'ELASTIC': 1,
+        'MOMENTUM': 1,
+        'EFFECTIVE': 1,
+    }
+
+    # The shift factor for inelastic collisions.
+    SHIFT_FACTOR = {
+        'EXCITATION': 1,
+        'IONIZATION': 2,
+        'ATTACHMENT': 1,
+        'ELASTIC': 1,
+        'MOMENTUM': 1,
+        'EFFECTIVE': 1,
+    }
+
     def __init__(self, target=None, kind=None, data=None,
-                 comment='', mass_ratio=None,
-                 product=None, threshold=0, weight_ratio=None):
+                 comment='', mass_ratio=None, product=None, threshold=0,
+                 weight_ratio=None):
+        """Initialize a process from tabulated cross-section data.
+
+        Parameters
+        ----------
+        target, kind, data, comment, mass_ratio, product, threshold,
+        weight_ratio
+            See :class:`Process`.
+
+        Raises
+        ------
+        ValueError
+            If an energy or cross-section value is negative.
+        """
         self.target_name = target
 
         # We will link this later
@@ -47,79 +104,162 @@ class Process(object):
         self.interp = padinterp(self.data)
         self.isnull = False
 
-        
-        self.in_factor = self.IN_FACTOR.get(self.kind, None)
-        self.shift_factor = self.SHIFT_FACTOR.get(self.kind, None)
-        
+        self.in_factor = self.IN_FACTOR.get(self.kind)
+        self.shift_factor = self.SHIFT_FACTOR.get(self.kind)
+
         if np.amin(self.data[:, 0]) < 0:
-            raise ValueError("Negative energy in the cross section %s"
-                             % str(self))
- 
+            raise ValueError(
+                "Negative energy in the cross section %s" % str(self)
+            )
+
         if np.amin(self.data[:, 1]) < 0:
-            raise ValueError("Negative cross section for %s"
-                             % str(self))
-       
+            raise ValueError(
+                "Negative cross section for %s" % str(self)
+            )
+
         self.cached_grid = None
 
-
     def scatterings(self, g, eps):
+        """Calculate scattering integrals for the cached energy grid.
+
+        Parameters
+        ----------
+        g : array-like
+            Exponential slopes for the energy cells.
+        eps : array-like
+            Energy values at which the integrals are evaluated.
+
+        Returns
+        -------
+        numpy.ndarray
+            Scattering contribution for each selected energy cell. An empty
+            float array is returned when no cached intervals overlap the grid.
+
+        Notes
+        -----
+        Call :meth:`set_grid_cache` before this method. The cache must
+        correspond to the same grid used to produce ``g`` and ``eps``.
+
+        Examples
+        --------
+        >>> process = Process(
+        ...     kind="ELASTIC",
+        ...     data=[[0.0, 1.0], [2.0, 1.0]],
+        ... )
+        >>> process.set_grid_cache(type("Grid", (), {
+        ...     "b": np.array([0.0, 1.0, 2.0])
+        ... })())
+        >>> np.allclose(
+        ...     process.scatterings(np.zeros(2), np.ones(2)),
+        ...     [0.5, 1.5],
+        ... )
+        True
+        """
         if len(self.j) == 0:
-            # When we do not have inelastic collisions or when the grid is
-            # smaller than the thresholds, we still return an empty array
-            # and thus avoid exceptions in g[self.j]
+            # Avoid indexing g[self.j] when no interval overlaps the grid.
             return np.array([], dtype='f')
 
         gj = g[self.j]
         epsj = eps[self.j]
-        r = int_linexp0(self.eps[:, 0], self.eps[:, 1], 
-                        self.sigma[:, 0], self.sigma[:, 1],
-                        gj, epsj)
+        r = int_linexp0(
+            self.eps[:, 0],
+            self.eps[:, 1],
+            self.sigma[:, 0],
+            self.sigma[:, 1],
+            gj,
+            epsj,
+        )
         return r
-        
-        
+
     def set_grid_cache(self, grid):
-        """ Sets a grid cache of the intersections between grid cell j and grid
-        cell i shifted. 
+        """Cache intersections between grid cells and shifted cells.
+
+        Parameters
+        ----------
+        grid : object
+            Energy grid with an increasing ``b`` array of cell boundaries.
+
+        Returns
+        -------
+        None
+            The calculated intervals are stored on ``self``.
+
+        Notes
+        -----
+        Reusing the identical grid object does not recalculate the cache.
+        The cached arrays ``i``, ``j``, ``sigma``, and ``eps`` describe
+        overlapping intervals and interpolated cross sections.
         """
 
-        # We will create an arras with matching 
+        # Create an array with matching
         # rows ([i], [j], [eps1, eps2], [sigma1, sigma2])
-        # that contain the overlap between the shifted cell i and cell j.
-        # However we may have more than one row for a given i, j if 
-        # an interpolation point for sigma falls inside the interval.
+        # containing the overlap between shifted cell i and cell j. There may
+        # be multiple rows for a given i, j if an interpolation point for
+        # sigma falls inside the interval.
 
         if self.cached_grid is grid:
-            # We only have to redo all these computations when the grid changes
-            # so we store the grid for which this has been already calculated.
             return
 
         self.cached_grid = grid
 
         eps1 = self.shift_factor * grid.b + self.threshold
-        eps1[:] = np.maximum(eps1, grid.b[0] + 1e-9)
-        eps1[:] = np.minimum(eps1, grid.b[-1] - 1e-9)
+        eps1 = np.maximum(eps1, grid.b[0] + 1e-9)
+        eps1 = np.minimum(eps1, grid.b[-1] - 1e-9)
 
         fltb = np.logical_and(grid.b >= eps1[0], grid.b <= eps1[-1])
         fltx = np.logical_and(self.x >= eps1[0], self.x <= eps1[-1])
         nodes = np.unique(np.r_[eps1, grid.b[fltb], self.x[fltx]])
 
-
         sigma0 = self.interp(nodes)
-        
         self.j = np.searchsorted(grid.b, nodes[1:]) - 1
         self.i = np.searchsorted(eps1, nodes[1:]) - 1
         self.sigma = np.c_[sigma0[:-1], sigma0[1:]]
-        self.eps   = np.c_[nodes[:-1], nodes[1:]]
+        self.eps = np.c_[nodes[:-1], nodes[1:]]
 
     def __str__(self):
-        return "{%s: %s %s}" % (self.kind, self.target_name, 
-                                "-> " + self.product if self.product else "")
+        """Return a concise human-readable description of the process.
+
+        Returns
+        -------
+        str
+            Process kind, target name, and optional product.
+        """
+        return "{%s: %s %s}" % (
+            self.kind,
+            self.target_name,
+            "-> " + self.product if self.product else "",
+        )
 
 
 class NullProcess(Process):
-    """ This is a null process with a 0 cross section it is useful 
-    when we reduce other processes. """
+    """Represent a process with an identically zero cross section.
+
+    Parameters
+    ----------
+    target : str
+        Name of the collision target.
+    kind : str
+        Process type.
+
+    Examples
+    --------
+    >>> process = NullProcess("Ar", "ELASTIC")
+    >>> process.isnull
+    True
+    >>> process.interp(np.array([0.0, 1.0])).tolist()
+    [0.0, 0.0]
+    """
+
     def __init__(self, target, kind):
+        """Initialize a zero-cross-section process.
+
+        Parameters
+        ----------
+        target : str
+            Name of the collision target.
+        kind : str
+            Process type.
+        """
         self.data = np.empty((0, 2))
         self.interp = lambda x: np.zeros_like(x)
         self.target_name = target
@@ -136,12 +276,38 @@ class NullProcess(Process):
         self.y = np.array([])
 
     def __str__(self):
+        """Return the fixed display name for a null process.
+
+        Returns
+        -------
+        str
+            ``"{NULL}"``.
+        """
         return "{NULL}"
 
 
 def padinterp(data):
-    """ Interpolates from data but adds elements at the beginning and end
-    to extrapolate cross-sections. """
+    """Create a linear interpolator with constant endpoint extrapolation.
+
+    Parameters
+    ----------
+    data : numpy.ndarray
+        Two-column array containing nonnegative energies and cross sections.
+        The first column must be sorted in ascending order.
+
+    Returns
+    -------
+    scipy.interpolate.interp1d
+        Linear interpolator. Values below the first positive energy are
+        extended from the first row, and values above the final energy are
+        extended from the last row.
+
+    Examples
+    --------
+    >>> interpolator = padinterp(np.array([[1.0, 2.0], [3.0, 4.0]]))
+    >>> interpolator(np.array([0.0, 2.0, 4.0])).tolist()
+    [2.0, 3.0, 4.0]
+    """
     if data[0, 0] > 0:
         x = np.r_[0.0, data[:, 0], 1e8]
         y = np.r_[data[0, 1], data[:, 1], data[-1, 1]]
@@ -153,9 +319,43 @@ def padinterp(data):
 
 
 def int_linexp0(a, b, u0, u1, g, x0):
-    """ This is the integral in [a, b] of u(x) * exp(g * (x0 - x)) * x 
-    assuming that
-    u is linear with u({a, b}) = {u0, u1}."""
+    """Integrate a linearly interpolated function times an exponential.
+
+    The integral is
+
+    .. math::
+
+       \\int_a^b u(x) \\exp(g (x_0 - x)) x\\,dx,
+
+    where ``u`` is linear and has endpoint values ``u0`` and ``u1``.
+    Inputs are broadcast according to NumPy rules.
+
+    Parameters
+    ----------
+    a, b : array-like
+        Lower and upper integration bounds.
+    u0, u1 : array-like
+        Values of the linear function at ``a`` and ``b``.
+    g : array-like
+        Exponential slopes. Non-finite slopes contribute zero.
+    x0 : array-like
+        Reference energy in the exponential.
+
+    Returns
+    -------
+    numpy.ndarray
+        Broadcasted integral values.
+
+    Raises
+    ------
+    FloatingPointError
+        If a finite slope produces a non-finite integral.
+
+    Examples
+    --------
+    >>> int_linexp0(0.0, 1.0, 1.0, 1.0, 0.0, 0.0)
+    array(0.5)
+    """
 
     # Since u(x) is linear, we calculate separately the coefficients
     # of degree 0 and 1 which, after multiplying by the x in the integrand
@@ -171,10 +371,16 @@ def int_linexp0(a, b, u0, u1, g, x0):
     # even for small x.
     a, b, u0, u1, g, x0 = np.broadcast_arrays(a, b, u0, u1, g, x0)
     finite = np.isfinite(g)
-    small = finite & (np.abs(g) * np.maximum(np.abs(a-x0), np.abs(b-x0)) < 0.1)
+    small = finite & (
+        np.abs(g) * np.maximum(np.abs(a - x0), np.abs(b - x0)) < 0.1
+    )
     # Do not evaluate singular formulae for a flat distribution. Nonfinite
     # slopes retain the legacy zero contribution; the solver diagnoses them.
-    work_g = np.where(finite & ~small, g, 1 / (1 + np.maximum(np.abs(a-x0), np.abs(b-x0))))
+    work_g = np.where(
+        finite & ~small,
+        g,
+        1 / (1 + np.maximum(np.abs(a - x0), np.abs(b - x0))),
+    )
     expm1a = np.expm1(work_g * (-a + x0))
     expm1b = np.expm1(work_g * (-b + x0))
 
@@ -191,14 +397,22 @@ def int_linexp0(a, b, u0, u1, g, x0):
     # A1 = (  expa * ag1
     #        - expb * bg1) / g2
 
-    # A2 = (expa * (2 * ag1 + ag * ag) - 
+    # A2 = (expa * (2 * ag1 + ag * ag) -
     #       expb * (2 * bg1 + bg * bg)) / g3
 
-    A1 = (  expm1a * ag1 + ag
-          - expm1b * bg1 - bg) / g2
+    A1 = (
+        expm1a * ag1
+        + ag
+        - expm1b * bg1
+        - bg
+    ) / g2
 
-    A2 = (expm1a * (2 * ag1 + ag * ag) + ag * (ag + 2) - 
-          expm1b * (2 * bg1 + bg * bg) - bg * (bg + 2)) / g3
+    A2 = (
+        expm1a * (2 * ag1 + ag * ag)
+        + ag * (ag + 2)
+        - expm1b * (2 * bg1 + bg * bg)
+        - bg * (bg + 2)
+    ) / g3
 
     # The factors multiplying each coefficient can be obtained by
     # the interpolation formula of u(x) = c0 + c1 * x
@@ -211,16 +425,20 @@ def int_linexp0(a, b, u0, u1, g, x0):
         # Integrate in a local coordinate to avoid cancellation at g -> 0.
         # For g=0 the integrand is a quadratic polynomial, integrated exactly.
         t = (_QUAD_X + 1) / 2
-        width = (b-a)[small, None]
+        width = (b - a)[small, None]
         x = a[small, None] + width * t
-        u = u0[small, None] * (1-t) + u1[small, None] * t
+        u = u0[small, None] * (1 - t) + u1[small, None] * t
         values = width[:, 0] / 2 * np.sum(
-            _QUAD_W * u * x * np.exp(g[small, None] * (x0[small, None]-x)), axis=1)
+            _QUAD_W * u * x
+            * np.exp(g[small, None] * (x0[small, None] - x)),
+            axis=1,
+        )
         r = np.array(r, copy=True)
         r[small] = values
     r = np.where(finite, r, 0.0)
     if not np.all(np.isfinite(r)):
-        raise FloatingPointError('Nonfinite collision integral for a finite EEDF slope; check the EEDF and energy grid.')
+        raise FloatingPointError(
+            'Nonfinite collision integral for a finite EEDF slope; '
+            'check the EEDF and energy grid.'
+        )
     return r
-
-
