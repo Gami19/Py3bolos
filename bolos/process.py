@@ -289,9 +289,14 @@ class Process:
         if self.cached_grid is grid:
             return
 
-        self.cached_grid = grid
+        shift_factor = self.shift_factor
+        if shift_factor is None:
+            raise ValueError(
+                f"Unsupported collision process kind: {self.kind!r}"
+            )
 
-        eps1 = self.shift_factor * grid.b + self.threshold
+        self.cached_grid = grid
+        eps1 = shift_factor * grid.b + self.threshold
         eps1 = np.maximum(eps1, grid.b[0] + 1e-9)
         eps1 = np.minimum(eps1, grid.b[-1] - 1e-9)
 

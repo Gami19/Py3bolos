@@ -245,8 +245,10 @@ def _read_momentum(fp: Iterator[str]) -> ProcessDict:
     ('Ar', 1e-05)
     """
     target, arg, comment, data = _read_block(fp, has_arg=True)
+    if arg is None:
+        raise ValueError("A process argument line is required")
     mass_ratio = float(arg.split()[0])
-    d = dict(
+    d: ProcessDict = dict(
         target=target,
         mass_ratio=mass_ratio,
         comment=comment,
@@ -305,9 +307,11 @@ def _read_excitation(fp: Iterator[str]) -> ProcessDict:
     (11.5, 3.0)
     """
     target, arg, comment, data = _read_block(fp, has_arg=True)
+    if arg is None:
+        raise ValueError("A process argument line is required")
     lhs, rhs = [s.strip() for s in RE_ARROW.split(target)]
 
-    d = dict(
+    d: ProcessDict = dict(
         target=lhs,
         product=rhs,
         comment=comment,
@@ -366,7 +370,7 @@ def _read_attachment(fp: Iterator[str]) -> ProcessDict:
     """
     target, arg, comment, data = _read_block(fp, has_arg=False)
 
-    d = dict(
+    d: ProcessDict = dict(
         comment=comment,
         data=data,
         threshold=0.0,

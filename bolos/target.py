@@ -76,14 +76,14 @@ class Target:
         self.clipped_elastic_range = None
 
         # Lists of all processes pertaining this target
-        self.elastic = []
-        self.effective = []
-        self.attachment = []
-        self.ionization = []
-        self.excitation = []
-        self.weighted_elastic = []
+        self.elastic: list[Process] = []
+        self.effective: list[Process] = []
+        self.attachment: list[Process] = []
+        self.ionization: list[Process] = []
+        self.excitation: list[Process] = []
+        self.weighted_elastic: list[Process] = []
 
-        self.kind = {
+        self.kind: dict[str, list[Process]] = {
             "ELASTIC": self.elastic,
             "EFFECTIVE": self.effective,
             "MOMENTUM": self.effective,
@@ -93,7 +93,9 @@ class Target:
             "WEIGHTED_ELASTIC": self.weighted_elastic,
         }
 
-        self.by_product = defaultdict(list)
+        self.by_product: defaultdict[str | None, list[Process]] = (
+            defaultdict(list)
+        )
 
         logger.debug("Target %s created.", self)
 
@@ -129,7 +131,11 @@ class Target:
         >>> target.elastic[0] is collision
         True
         """
-        kind = self.kind[process.kind]
+        process_kind = process.kind
+        if process_kind is None:
+            raise ValueError("Process kind must be specified.")
+
+        kind = self.kind[process_kind]
         kind.append(process)
 
         if process.mass_ratio is not None:

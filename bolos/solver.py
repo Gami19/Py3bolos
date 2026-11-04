@@ -106,7 +106,7 @@ class BoltzmannSolver:
         self.EN = None
         self.kT = None
         self.grid = grid
-        self.target = {}
+        self.target: dict[str, Target] = {}
 
     @property
     def grid(self) -> Grid:
@@ -159,6 +159,11 @@ class BoltzmannSolver:
         density : float
            New molar fraction.
 
+        Raises
+        ------
+        KeyError
+            If ``species`` has not been added to the solver.
+
         Examples
         --------
         >>> from bolos.grid import LinearGrid
@@ -169,7 +174,11 @@ class BoltzmannSolver:
         >>> bsolver.target["N2"].density
         0.8
         """
-        self.target[species].density = density
+        target = self.target.get(species)
+        if target is None:
+            raise KeyError(f"Unknown target species: {species!r}")
+
+        target.density = density
 
     def load_collisions(self, dict_processes):
         r"""Load collision processes from dictionaries.
@@ -249,6 +258,8 @@ class BoltzmannSolver:
         load_collisions
         """
         proc = Process(**kwargs)
+        if proc.target_name is None:
+            raise ValueError("Process target name must be specified.")
         try:
             target = self.target[proc.target_name]
         except KeyError:
@@ -470,6 +481,8 @@ class BoltzmannSolver:
             raise ValueError("Gas temperature kT must be set before init().")
 
         for target, process in self.iter_elastic():
+            if target.mass_ratio is None:
+                raise ValueError("Mass ratio for target '%s' is not set." % target.name)
             s = target.density * process.interp(self.benergy)
             self.sigma_eps += 2 * target.mass_ratio * s
             self.sigma_m += s
@@ -978,6 +991,8 @@ class BoltzmannSolver:
         for t, k in reactions:
             r = t.density * GAMMA * k.scatterings(g, self.cenergy)
             in_factor = k.in_factor
+            if in_factor is None:
+                raise ValueError("Process %s has no in_factor defined." % k)
 
             data.extend([in_factor * r, -r])
             rows.extend([k.i, k.j])
@@ -1044,7 +1059,13 @@ class BoltzmannSolver:
         r = k.scatterings(g, self.cenergy)
         rate = GAMMA * np.dot(F0[k.j], r)
         if weighted:
-            rate *= k.target.density
+            target = k.target
+            if target is None:
+                raise ValueError(
+                    "Process must be attached to a target before "
+                    "calculating a weighted rate."
+                )
+            rate *= target.density
 
         return rate
 
