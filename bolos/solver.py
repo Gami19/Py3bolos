@@ -73,6 +73,7 @@ class BoltzmannSolver(object):
         """
         self.density = dict()
         self.EN = None
+        self.kT = None
         self.grid = grid
         self.target = {}
 
@@ -331,6 +332,15 @@ class BoltzmannSolver(object):
 
         self.sigma_eps = np.zeros_like(self.benergy)
         self.sigma_m = np.zeros_like(self.benergy)
+        electric_field = self.EN
+        gas_temperature = self.kT
+        if electric_field is None:
+            raise ValueError(
+                "Reduced electric field EN must be set before init()."
+            )
+        if gas_temperature is None:
+            raise ValueError("Gas temperature kT must be set before init().")
+
         for target, process in self.iter_elastic():
             s = target.density * process.interp(self.benergy)
             self.sigma_eps += 2 * target.mass_ratio * s
@@ -344,10 +354,10 @@ class BoltzmannSolver(object):
         self.W = -GAMMA * self.benergy ** 2 * self.sigma_eps
 
         # Coefficient of sigma_tilde.
-        self.DA = GAMMA / 3.0 * self.EN ** 2 * self.benergy
+        self.DA = GAMMA / 3.0 * electric_field ** 2 * self.benergy
 
         # Independent term.
-        self.DB = GAMMA * self.kT * self.benergy ** 2 * self.sigma_eps
+        self.DB = GAMMA * gas_temperature * self.benergy ** 2 * self.sigma_eps
 
         self._slope_diagnostics_seen = set()
         for target in self.target.values():
