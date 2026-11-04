@@ -90,19 +90,14 @@ class BoltzmannSolver(object):
             New energy grid.
         """
         self._grid = grid
-
         # These are cell boundary values at i - 1/2
         self.benergy = self.grid.b
-
         # these are cell centers
         self.cenergy = self.grid.c
-
         # And these are the deltas
         self.denergy = self.grid.d
-
         # This is useful when integrating the growth term.
         self.denergy32 = self.benergy[1:] ** 1.5 - self.benergy[:-1] ** 1.5
-
         self.n = grid.n
 
     grid = property(_get_grid, _set_grid)
@@ -148,12 +143,10 @@ class BoltzmannSolver(object):
         add_process
         """
         plist = [self.add_process(**p) for p in dict_processes]
-
         # We make sure that all targets have their elastic cross-sections
         # in the form of ELASTIC cross sections (not EFFECTIVE / MOMENTUM)
         for key, item in self.target.items():
             item.ensure_elastic()
-
         return plist
 
     def add_process(self, **kwargs):
@@ -197,7 +190,6 @@ class BoltzmannSolver(object):
             self.target[proc.target_name] = target
 
         target.add_process(proc)
-
         return proc
 
 
@@ -252,7 +244,6 @@ class BoltzmannSolver(object):
         tuple
             A ``(target, process)`` pair.
         """
-
         for target in self.target.values():
             if target.density > 0:
                 for process in target.elastic:
@@ -267,7 +258,6 @@ class BoltzmannSolver(object):
         tuple
             A ``(target, process)`` pair.
         """
-
         for target in self.target.values():
             if target.density > 0:
                 for process in target.inelastic:
@@ -329,7 +319,6 @@ class BoltzmannSolver(object):
         -----
         Reinitialization is required whenever physical conditions change.
         """
-
         self.sigma_eps = np.zeros_like(self.benergy)
         self.sigma_m = np.zeros_like(self.benergy)
         electric_field = self.EN
@@ -405,7 +394,6 @@ class BoltzmannSolver(object):
         -----
         This is useful as an initial guess for :meth:`converge`.
         """
-
         return (
             2 * np.sqrt(1 / np.pi)
             * kT ** (-3.0 / 2.0)
@@ -435,11 +423,8 @@ class BoltzmannSolver(object):
         standard entry point for the iterative solution of the EEDF is
         the :func:`BoltzmannSolver.converge` method.
         """
-
         A, Q = self._linsystem(f0)
-
         f1 = spsolve(sparse.eye(self.n) + delta * A - delta * Q, f0)
-
         return self._normalized(f1)
 
 
@@ -474,7 +459,6 @@ class BoltzmannSolver(object):
         If convergence is not achieved after ``maxn`` iterations, an exception
         of type ``ConvergenceError`` is raised.
         """
-
         err0 = err1 = 0
         delta = delta0
 
@@ -783,16 +767,12 @@ class BoltzmannSolver(object):
             k = self.search(k)
 
         k.set_grid_cache(self.grid)
-
         r = k.scatterings(g, self.cenergy)
-
         P = sparse.coo_matrix(
             (GAMMA * r, (k.j, np.zeros(r.shape))),
             shape=(self.n, 1),
         ).todense()
-
         P = np.squeeze(np.array(P))
-
         rate = F0.dot(P)
         if weighted:
             rate *= k.target.density
@@ -821,7 +801,6 @@ class BoltzmannSolver(object):
         --------
         diffusion
         """
-
         DF0 = np.r_[0.0, np.diff(F0) / np.diff(self.cenergy), 0.0]
         Q = self._PQ(F0, reactions=self.iter_growth())
 
@@ -852,20 +831,16 @@ class BoltzmannSolver(object):
         mobility
 
         """
-
         Q = self._PQ(F0, reactions=self.iter_growth())
-
         nu = np.sum(Q.dot(F0)) / GAMMA
-
         sigma_m = np.zeros_like(self.cenergy)
+
         for target, process in self.iter_momentum():
             s = target.density * process.interp(self.cenergy)
             sigma_m += s
 
         sigma_tilde = sigma_m + nu / np.sqrt(self.cenergy)
-
         y = F0 * self.cenergy / sigma_tilde
-
         return (GAMMA / 3) * simpson(y, x=self.cenergy)
 
 
@@ -883,6 +858,5 @@ class BoltzmannSolver(object):
             Mean electron energy in eV.
 
         """
-
         de52 = np.diff(self.benergy**2.5)
         return np.sum(0.4 * F0 * de52)
