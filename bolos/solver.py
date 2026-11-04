@@ -1,23 +1,11 @@
-""" This module contains the main routines to load processes, specify the
-physical conditions and solve the Boltzmann equation.
- 
-The data and calculations are encapsulated into the :class:`BoltzmannSolver` 
-class, which you have to instantiate with a :class:`grid.Grid` instance.  
-Use :func:`BoltzmannSolver.load_collisions` or 
-:func:`BoltzmannSolver.add_process` to add processes with
-their cross-sections.  Afterwards, set the density of each component
-with :func:`BoltzmannSolver.set_density` or :attr:`BoltzmannSolver.target`.
-The method :func:`BoltzmannSolver.maxwell` gives you a reasonable initial guess
-for the electron energy distribution function (EEDF) that you can then improve
-iteratively with :func:`BoltzmannSolver.converge`.  Finally, methods such as
-:func:`BoltzmannSolver.rate` or :func:`BoltzmannSolver.mobility` allow you
-to obtain reaction rates and transport parameters for a given EEDF.
+"""Solve the electron Boltzmann equation.
 
+The :class:`BoltzmannSolver` class stores collision processes and physical
+conditions, then solves for the electron energy distribution function (EEDF).
 """
 
 __docformat__ = "restructuredtext en"
 
-import sys
 import logging
 
 from math import sqrt
@@ -41,103 +29,65 @@ KB = co.k
 ELECTRONVOLT = co.eV
 
 class ConvergenceError(Exception):
-    pass
+    """Raised when the EEDF iteration does not converge."""
+
 
 class BoltzmannSolver(object):
-    """Class to solve the Boltzmann equation for electrons in a gas.
-
-    This class contains the required elements to specify the conditions
-    for the solver and obtain the equilibrium electron energy distribution
-    function.
+    """Solve the Boltzmann equation for electrons in a gas.
 
     Parameters
     ----------
-    grid : :class:`grid.Grid`
-       The grid in energies where the distribution funcition will be 
-       evaluated.
+    grid : grid.Grid
+        Energy grid on which the EEDF is evaluated.
 
     Attributes
     ----------
-    benergy : array of floats
-       Cell boundaries of the energy grid (set automatically at \
-       initialization). Equivalent to `grid.b`.  
-    benergy : array of floats
-       Cell lengths of the energy grid (set automatically at initialization). \
-       Equivalent to `grid.d`. 
-    cenergy : array of floats
-       Cell centers of the energy grid (set automatically at initialization). \
-       Equivalent to `grid.c`.
-    n : int 
-       Number of cells in the energy grid (set automatically at \
-       initialization). Equivalent to `grid.n`.
+    benergy, cenergy, denergy : numpy.ndarray
+        Cell boundaries, centers, and widths, respectively.
+    denergy32 : numpy.ndarray
+        Differences of boundary energies raised to the power 3/2.
+    n : int
+        Number of energy cells.
     kT : float
-       Gas temperature in eV.  Must be set by the user.
+        Gas temperature in eV. Must be set by the user.
     EN : float
-       Reduced electric field in Townsend (1 Td is 1e-21 V m^2). \
-       Must be set by the user.
+        Reduced electric field in SI units. Must be set by the user.
     target : dict
-       A dictionary with targets in the set of processes.\
-       The user needs to set the density (molar fraction) of the desired \
-       targets using this dictionary.  E.g. synthetic air is represented by 
+        Mapping from target names to :class:`target.Target` instances.
 
     Examples
     --------
-    >>> import numpy as np
-    >>> from bolos import solver, grid
-    >>> grid.LinearGrid(0, 60., 400)
-    >>> bsolver = solver.BoltzmannSolver(grid)
-    >>> # Parse the cross-section file in BOSIG+ format and load it into the
-    >>> # solver.
-    >>> with open(args.input) as fp:
-    >>>     processes = parser.parse(fp)
-    >>> bsolver.load_collisions(processes)
-    >>> 
-    >>> # Set the conditions.  And initialize the solver
-    >>> bsolver.target['N2'].density = 0.8
-    >>> bsolver.target['O2'].density = 0.2
-    >>> bsolver.kT = 300 * co.k / co.eV
-    >>> bsolver.EN = 300.0 * solver.TOWNSEND
-    >>> bsolver.init()
-    >>> 
-    >>> # Start with Maxwell EEDF as initial guess.  Here we are starting with
-    >>> # with an electron temperature of 2 eV
-    >>> f0 = bsolver.maxwell(2.0)
-    >>> 
-    >>> # Solve the Boltzmann equation with a tolerance rtol and maxn 
-    >>> # iterations.
-    >>> f1 = bsolver.converge(f0, maxn=50, rtol=1e-5)
+    >>> from bolos.grid import LinearGrid
+    >>> bsolver = BoltzmannSolver(LinearGrid(0, 60.0, 400))
+    >>> bsolver.grid.n
+    400
 
     """
-
-
     def __init__(self, grid):
-        """ Initialize a solver instance.
-
-        Use this method to initialize a solver instance with a given grid.
+        """Initialize a solver with an energy grid.
 
         Parameters
         ----------
-        grid : :class:`grid.Grid`
-               The grid in energies where the distribution funcition will be 
-               evaluated.
-
-        Returns
-        -------
+        grid : grid.Grid
+            Energy grid on which the EEDF is evaluated.
         """
-
         self.density = dict()
-        
         self.EN = None
-
         self.grid = grid
-
-        # A dictionary with target_name -> target
         self.target = {}
-        
+
     def _get_grid(self):
+        """Return the solver's energy grid."""
         return self._grid
 
     def _set_grid(self, grid):
+        """Set the energy grid and update derived grid attributes.
+
+        Parameters
+        ----------
+        grid : grid.Grid
+            New energy grid.
+        """
         self._grid = grid
 
         # These are cell boundary values at i - 1/2
@@ -150,66 +100,51 @@ class BoltzmannSolver(object):
         self.denergy = self.grid.d
 
         # This is useful when integrating the growth term.
-        self.denergy32 = self.benergy[1:]**1.5 - self.benergy[:-1]**1.5
+        self.denergy32 = self.benergy[1:] ** 1.5 - self.benergy[:-1] ** 1.5
 
         self.n = grid.n
 
     grid = property(_get_grid, _set_grid)
 
-
     def set_density(self, species, density):
-        """ Sets the molar fraction of a species.
+        """Set the molar fraction of a target species.
 
         Parameters
         ----------
         species : str
-           The species whose density you want to set.
+           Target species name.
         density : float
-           New value of the density.
-
-        Returns
-        -------
+           New molar fraction.
 
         Examples
         --------
-        These are two equivalent ways to set densities for synthetic air:
-
-        Using :func:`set_density`::
-
-            bsolver.set_density('N2', 0.8)
-            bsolver.set_density('O2', 0.2)
-        
-        Using `bsolver.target`::
-
-            bsolver.target['N2'].density = 0.8
-            bsolver.target['O2'].density = 0.2
+        >>> from bolos.grid import LinearGrid
+        >>> from bolos.target import Target
+        >>> bsolver = BoltzmannSolver(LinearGrid(0, 10, 10))
+        >>> bsolver.target["N2"] = Target("N2")
+        >>> bsolver.set_density("N2", 0.8)
+        >>> bsolver.target["N2"].density
+        0.8
         """
-
         self.target[species].density = density
 
 
     def load_collisions(self, dict_processes):
-        """ Loads the set of collisions from the list of processes. 
-
-        Loads a list of dictionaries containing processes.
+        """Load collision processes from dictionaries.
 
         Parameters
         ----------
-        dict_processes : List of dictionary or dictionary-like elements.
-           The processes to add to this solver class.  
-           See :method:`solver.add_process` for the required fields
-           of each of the dictionaries.
+        dict_processes : iterable of dict
+            Process definitions accepted by :meth:`add_process`.
 
         Returns
         -------
-        processes : list
-           A list of all added processes, as :class:`process.Process` instances.
+        list of process.Process
+            Added process instances.
 
         See Also
         --------
-        add_process : Add a single process, with its cross-sections, to this
-           solver.
-
+        add_process
         """
         plist = [self.add_process(**p) for p in dict_processes]
 
@@ -217,55 +152,41 @@ class BoltzmannSolver(object):
         # in the form of ELASTIC cross sections (not EFFECTIVE / MOMENTUM)
         for key, item in self.target.items():
             item.ensure_elastic()
-            
+
         return plist
 
     def add_process(self, **kwargs):
-        """ Adds a new process to the solver.
-        
-        Adds a new process to the solver.  The process data is passed with
-        keyword arguments.
+        """Add a collision process to the solver.
 
         Parameters
         ----------
-        type : string
-           one of "EFFECTIVE", "MOMENTUM", "EXCITATION", "IONIZATION"
-           or "ATTACHMENT".
-        target : string
-           the target species of the process (e.g. "O", "O2"...).
-        ratio : float
-           the ratio of the electron mass to the mass of the target
-           (for elastic/momentum reactions only).
-        threshold : float
-           the energy threshold of the process in eV (only for 
-           inelastic reactions).
-        data : array or array-like
-           cross-section of the process array with two columns: column
-           0 must contain energies in eV, column 1 contains the
-           cross-section in square meters for each of these energies.
+        **kwargs
+            Keyword arguments passed to :class:`process.Process`, including
+            ``target``, ``kind``, ``data``, and process metadata.
 
         Returns
         -------
-        process : :class:`process.Process`
-           The process that has been added.
+        process.Process
+            The newly added process.
 
         Examples
         --------
         >>> import numpy as np
         >>> from bolos import solver, grid
-        >>> grid.LinearGrid(0, 60., 400)
-        >>> solver = BoltzmannSolver(grid)
+        >>> energy_grid = grid.LinearGrid(0, 60., 400)
+        >>> bsolver = solver.BoltzmannSolver(energy_grid)
         >>> # This is an example cross-section that decays exponentially
         >>> energy = np.linspace(0, 10)
         >>> cross_section = 1e-20 * np.exp(-energy)
-        >>> solver.add_process(type="EXCITATION", target="Kriptonite", 
-        >>>                    ratio=1e-5, threshold=10, 
-        >>>                    data=np.c_[energy, cross_section])
+        >>> process = bsolver.add_process(
+        ...     kind="EXCITATION", target="Kriptonite",
+        ...     mass_ratio=1e-5, threshold=10,
+        ...     data=np.c_[energy, cross_section],
+        ... )
 
         See Also
         --------
-        load_collisions : Add a set of collisions.
-        
+        load_collisions
         """
         proc = Process(**kwargs)
         try:
@@ -280,30 +201,35 @@ class BoltzmannSolver(object):
 
 
     def search(self, signature, product=None, first=True):
-        """ Search for a process or a number of processes within the solver.
-        
+        """Find one or more processes matching a signature.
+
         Parameters
         ----------
-        signature : string
-           Signature of the process to search for.  It must be in the form
-           "TARGET -> RESULT [+ RESULT2]...".     
-        product : string
-           If present, the first parameter is interpreted as TARGET and the
-           second parameter is the PRODUCT.
-        first : boolean
-           If true returns only the first process matching the search; if
-           false returns a list of them, even if there is only one result.
-        
+        signature : str
+            Process signature in the form ``"TARGET -> PRODUCT"``.
+        product : str, optional
+            If provided, interpret ``signature`` as a target name and search
+            for this product.
+        first : bool, optional
+            If ``True``, return only the first match; otherwise return all
+            matches.
+
         Returns
         -------
-        processes : list or :class:`process.Process` instance.
-           If ``first`` was true, returns the first process matching the
-           search.  Otherwise returns a (possibly empty) list of matches.
+        process.Process or list of process.Process
+            First matching process or all matching processes.
+
+        Raises
+        ------
+        KeyError
+            If the target or product is not found.
 
         Examples
         --------
-        >>> ionization = solver.search("N2 -> N2^+")[0]
-        >>> ionization = solver.search("N2", "N2^+", first=True)
+        >>> ionization = bsolver.search("N2 -> N2^+")  # doctest: +SKIP
+        >>> ionization = bsolver.search(
+        ...     "N2", "N2^+", first=True
+        ... )  # doctest: +SKIP
 
         """
         if product is not None:
@@ -318,14 +244,12 @@ class BoltzmannSolver(object):
 
 
     def iter_elastic(self):
-        """ Iterates over all elastic processes.
+        """Iterate over active elastic processes.
 
-        Parameters
-        ----------
-
-        Returns
-        -------
-        An iterator over (target, process) tuples. 
+        Yields
+        ------
+        tuple
+            A ``(target, process)`` pair.
         """
 
         for target in self.target.values():
@@ -335,14 +259,13 @@ class BoltzmannSolver(object):
 
 
     def iter_inelastic(self):
-        """ Iterates over all inelastic processes.
+        """Iterate over active inelastic processes.
 
-        Parameters
-        ----------
-
-        Returns
-        -------
-        An iterator over (target, process) tuples. """
+        Yields
+        ------
+        tuple
+            A ``(target, process)`` pair.
+        """
 
         for target in self.target.values():
             if target.density > 0:
@@ -351,16 +274,12 @@ class BoltzmannSolver(object):
 
 
     def iter_growth(self):
-        """ Iterates over all processes that affect the growth
-        of electron density, i.e. ionization and attachment.
+        """Iterate over active ionization and attachment processes.
 
-        Parameters
-        ----------
-
-        Returns
-        -------
-        An iterator over (target, process) tuples. 
-
+        Yields
+        ------
+        tuple
+            A ``(target, process)`` pair.
         """
         for target in self.target.values():
             if target.density > 0:
@@ -371,15 +290,12 @@ class BoltzmannSolver(object):
                     yield target, process
 
     def iter_all(self):
-        """ Iterates over all processes.
+        """Iterate over all active elastic and inelastic processes.
 
-        Parameters
-        ----------
-
-        Returns
-        -------
-        An iterator over (target, process) tuples. 
-
+        Yields
+        ------
+        tuple
+            A ``(target, process)`` pair.
         """
         for t, k in self.iter_elastic():
             yield t, k
@@ -389,31 +305,28 @@ class BoltzmannSolver(object):
 
 
     def iter_momentum(self):
+        """Iterate over processes used for momentum calculations.
+
+        Yields
+        ------
+        tuple
+            A ``(target, process)`` pair from :meth:`iter_all`.
+        """
         return self.iter_all()
 
 
     def init(self):
-        """ Initializes the solver with given conditions and densities of the
-        target species.
+        """Initialize cached collision and transport coefficients.
 
-        This method does all the work previous to the actual iterations.
-        It has to be called whenever the densities, the gas temperature
-        or the electric field are changed.
+        Call this method after changing target densities, gas temperature,
+        electric field, or the energy grid and before iterating the EEDF.
 
-        Parameters
-        ----------
-
-        Returns
-        -------
+        The expensive grid-dependent collision calculations are cached on
+        each process and reused until the grid object changes.
 
         Notes
         -----
-        The most expensive calculations in this method are cached so they are
-        not repeated in each call.  Therefore the execution time may vary
-        wildly in different calls.  It takes very long whenever you change
-        the solver's grid; therefore is is strongly recommended not to 
-        change the grid if is not strictly neccesary.
-
+        Reinitialization is required whenever physical conditions change.
         """
 
         self.sigma_eps = np.zeros_like(self.benergy)
@@ -428,71 +341,83 @@ class BoltzmannSolver(object):
             self.sigma_m += target.density * process.interp(self.benergy)
             process.set_grid_cache(self.grid)
 
-        self.W = -GAMMA * self.benergy**2 * self.sigma_eps
-        
-        # This is the coeff of sigma_tilde
-        self.DA = (GAMMA / 3. * self.EN**2 * self.benergy)
+        self.W = -GAMMA * self.benergy ** 2 * self.sigma_eps
 
-        # This is the independent term
-        self.DB = (GAMMA * self.kT * self.benergy**2 * self.sigma_eps)
+        # Coefficient of sigma_tilde.
+        self.DA = GAMMA / 3.0 * self.EN ** 2 * self.benergy
+
+        # Independent term.
+        self.DB = GAMMA * self.kT * self.benergy ** 2 * self.sigma_eps
 
         self._slope_diagnostics_seen = set()
         for target in self.target.values():
             affected = target.clipped_elastic_range
             if target.density > 0 and affected is not None:
-                overlap = self.grid.x1 > affected[0] and self.grid.x0 < affected[1]
+                overlap = (
+                    self.grid.x1 > affected[0]
+                    and self.grid.x0 < affected[1]
+                )
                 log = logging.warning if overlap else logging.info
-                log('Target %s: clipped ELASTIC range %.6g..%.6g eV %s grid %.6g..%.6g eV. %s',
-                    target.name, *affected, 'overlaps' if overlap else 'is outside',
-                    self.grid.x0, self.grid.x1,
-                    'Check cross-section extrapolation.' if overlap else 'No direct effect on this grid (safe).')
-        logging.info('Energy boundary faces use zero flux: unused boundary divisions are skipped (safe).')
+                log(
+                    "Target %s: clipped ELASTIC range %.6g..%.6g eV %s "
+                    "grid %.6g..%.6g eV. %s",
+                    target.name,
+                    *affected,
+                    "overlaps" if overlap else "is outside",
+                    self.grid.x0,
+                    self.grid.x1,
+                    "Check cross-section extrapolation."
+                    if overlap
+                    else "No direct effect on this grid (safe).",
+                )
+        logging.info(
+            "Energy boundary faces use zero flux: unused boundary divisions "
+            "are skipped (safe)."
+        )
 
-        logging.info("Solver succesfully initialized/updated")
+        logging.info("Solver successfully initialized/updated")
 
 
-    ##
-    # Here are the functions that depend on F0 and are therefore
-    # called in each iteration.  These are all pure-functions without
-    # side-effects and without changing the state of self
     def maxwell(self, kT):
-        """ Calculates a Maxwell-Boltzmann distribution function.
+        """Return a normalized Maxwell-Boltzmann EEDF.
 
         Parameters
         ----------
         kT : float
-           The electron temperature in eV.
+            Electron temperature in eV.
 
         Returns
         -------
-        f : array of floats 
-           A normalized Boltzmann-Maxwell EEDF with the given temperature.
+        numpy.ndarray
+            Normalized Maxwell-Boltzmann EEDF at the cell centers.
 
         Notes
         -----
-        This is often useful to give a starting value for the EEDF.
+        This is useful as an initial guess for :meth:`converge`.
         """
 
-        return (2 * np.sqrt(1 / np.pi)
-                * kT**(-3./2.) * np.exp(-self.cenergy / kT))
+        return (
+            2 * np.sqrt(1 / np.pi)
+            * kT ** (-3.0 / 2.0)
+            * np.exp(-self.cenergy / kT)
+        )
 
 
     def iterate(self, f0, delta=1e14):
-        """ Iterates once the EEDF. 
+        """Perform one normalized EEDF iteration.
 
         Parameters
         ----------
-        f0 : array of floats
-           The previous EEDF
-        delta : float
-           The convergence parameter.  Generally a larger delta leads to faster
-           convergence but a too large value may lead to instabilities or
-           slower convergence.
+        f0 : array-like
+            Previous EEDF.
+        delta : float, optional
+            Iteration parameter. Larger values can accelerate convergence but
+            may introduce instability.
 
         Returns
         -------
-        f1 : array of floats
-           A new value of the distribution function.
+        numpy.ndarray
+            Normalized updated EEDF.
 
         Notes
         -----
@@ -503,47 +428,36 @@ class BoltzmannSolver(object):
 
         A, Q = self._linsystem(f0)
 
-        f1 = spsolve(sparse.eye(self.n) 
-                     + delta * A - delta * Q, f0)
+        f1 = spsolve(sparse.eye(self.n) + delta * A - delta * Q, f0)
 
         return self._normalized(f1)
 
-    
+
     def converge(self, f0, maxn=100, rtol=1e-5, delta0=1e14, m=4.0,
                  full=False, **kwargs):
-        """ Iterates and attempted EEDF until convergence is reached.
+        """Iterate the EEDF until convergence is reached.
 
         Parameters
         ----------
-        f0 : array of floats
-           Initial EEDF.
-        maxn : int
-           Maximum number of iteration until the convergence is declared as 
-           failed (default: 100).
-        rtol : float
-           Target tolerance for the convergence.  The iteration is stopped
-           when the difference between EEDFs is smaller than rtol in L1
-           norm (default: 1e-5).
-        delta0 : float
-           Initial value of the iteration parameter.  This parameter
-           is adapted in succesive iterations to improve convergence.
-           (default: 1e14)
-        m : float
-           Attempted reduction in the error for each iteration.  The Richardson
-           extrapolation attempts to reduce the error by a factor m in each
-           iteration.  Larger m means faster convergence but also possible
-           instabilities and non-decreasing errors. (default: 4)
-        full : boolean
-           If true returns convergence information besides the EEDF.
+        f0 : array-like
+            Initial EEDF.
+        maxn : int, optional
+            Maximum number of iterations.
+        rtol : float, optional
+            Stop when the weighted L1 difference is below this tolerance.
+        delta0 : float, optional
+            Initial iteration parameter, adapted between iterations.
+        m : float, optional
+            Target error reduction factor for Richardson extrapolation.
+        full : bool, optional
+            If ``True``, return convergence information in addition to the
+            final EEDF.
 
         Returns
         -------
-        f1 : array of floats
-           Final EEDF
-        iters : int (returned only if ``full`` is True)
-           Number of iterations required to reach convergence.
-        err : float (returned only if ``full`` is True)
-           Final error estimation of the EEDF (must me smaller than ``rtol``).
+        numpy.ndarray or tuple
+            Final EEDF, or ``(EEDF, iterations, error)`` when ``full`` is
+            ``True``.
 
         Notes
         -----
@@ -563,28 +477,47 @@ class BoltzmannSolver(object):
 
                 # Log extrapolation attempting to reduce the error a factor m
                 delta = delta * np.log(m) / (np.log(err0) - np.log(err1))
-                
+
             f1 = self.iterate(f0, delta=delta, **kwargs)
             err0 = err1
             err1 = self._norm(abs(f0 - f1))
-            
-            logging.debug("After iteration %3d, err = %g (target: %g)" 
-                          % (i + 1, err1, rtol))
+
+            logging.debug(
+                "After iteration %3d, err = %g (target: %g)",
+                i + 1,
+                err1,
+                rtol,
+            )
             if err1 < rtol:
-                logging.info("Convergence achieved after %d iterations. "
-                             "err = %g" % (i + 1, err1))
+                logging.info(
+                    "Convergence achieved after %d iterations. err = %g",
+                    i + 1,
+                    err1,
+                )
                 if full:
                     return f1, i + 1, err1
 
                 return f1
             f0 = f1
-            
+
         logging.error("Convergence failed")
 
         raise ConvergenceError()
 
 
     def _linsystem(self, F):
+        """Build the transport and collision matrices for an EEDF.
+
+        Parameters
+        ----------
+        F : array-like
+            Current EEDF.
+
+        Returns
+        -------
+        tuple
+            Transport matrix ``A`` and collision matrix ``Q``.
+        """
         Q = self._PQ(F)
 
         # Useful for debugging but wasteful in normal times.
@@ -610,25 +543,58 @@ class BoltzmannSolver(object):
 
 
     def _norm(self, f):
+        """Calculate the EEDF normalization integral.
+
+        Parameters
+        ----------
+        f : array-like
+            EEDF values at cell centers.
+
+        Returns
+        -------
+        float
+            Integral of ``f * sqrt(E)`` over energy.
+        """
         return simpson(f * np.sqrt(self.cenergy), x=self.cenergy)
-        
-        # return np.sum(f * np.sqrt(self.cenergy) * self.denergy)
 
     def _normalized(self, f):
+        """Normalize an EEDF using :meth:`_norm`.
+
+        Parameters
+        ----------
+        f : array-like
+            EEDF values at cell centers.
+
+        Returns
+        -------
+        numpy.ndarray
+            Normalized EEDF.
+        """
         N = self._norm(f)
         return f / N
 
-
     def _scharf_gummel(self, sigma_tilde, G=0):
+        """Build the Scharfetter-Gummel transport matrix.
+
+        Parameters
+        ----------
+        sigma_tilde : array-like
+            Effective momentum-transfer cross section.
+        G : float or array-like, optional
+            Growth contribution added to the matrix diagonal.
+
+        Returns
+        -------
+        scipy.sparse.dia_matrix
+            Tridiagonal discretization matrix.
+        """
         D = np.ones_like(self.DA)
-        D[1:-1] = self.DA[1:-1] / sigma_tilde[1:-1] + self.DB[1:-1]
-        
-        # Due to the zero flux b.c. the values of z[0] and z[-1] are never used.
-        # To make sure, we set is a nan so it will taint everything if ever 
-        # used.
-        # TODO: Perhaps it would be easier simply to set the appropriate
-        # values here to satisfy the b.c.
-        z  = self.W * np.r_[np.nan, np.diff(self.cenergy), np.nan] / D
+        D[1:-1] = (
+            self.DA[1:-1] / sigma_tilde[1:-1] + self.DB[1:-1]
+        )
+
+        # Boundary values of z are unused because of the zero-flux conditions.
+        z = self.W * np.r_[np.nan, np.diff(self.cenergy), np.nan] / D
 
         a0 = self.W / (1 - np.exp(-z))
         a1 = self.W / (1 - np.exp(z))
@@ -638,7 +604,7 @@ class BoltzmannSolver(object):
         # No flux at the energy = 0 boundary
         diags[0, 0]  = a0[1]
 
-        diags[0, 1:] =  a0[2:]  - a1[1:-1]
+        diags[0, 1:] = a0[2:] - a1[1:-1]
         diags[1, :]  =  a1[:-1]
         diags[2, :]  = -a0[1:]
 
@@ -661,19 +627,49 @@ class BoltzmannSolver(object):
 
 
     def _g(self, F0):
+        """Estimate the logarithmic EEDF slope in each cell.
+
+        Parameters
+        ----------
+        F0 : array-like
+            EEDF values at cell centers.
+
+        Returns
+        -------
+        numpy.ndarray
+            Approximation to ``d(log(F0)) / dE``.
+
+        Raises
+        ------
+        FloatingPointError
+            If ``F0`` contains non-finite values.
+        """
         Fp = np.r_[F0[0], F0, F0[-1]]
         cenergyp = np.r_[self.cenergy[0], self.cenergy, self.cenergy[-1]]
         # Zero-valued tails can produce 0/0 or log(0). Diagnose their impact
         # explicitly instead of emitting repeated low-level NumPy warnings.
-        with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
-            g = np.log(Fp[2:] / Fp[:-2]) / (cenergyp[2:] - cenergyp[:-2])
+        with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
+            g = np.log(Fp[2:] / Fp[:-2]) / (
+                cenergyp[2:] - cenergyp[:-2]
+            )
         if not np.all(np.isfinite(F0)):
-            raise FloatingPointError('EEDF must be finite before constructing collision slopes.')
-        if np.any(F0 < 0) and 'negative' not in self._slope_diagnostics_seen:
-            self._slope_diagnostics_seen.add('negative')
-            negative_mass = np.sum(self.denergy32 * np.maximum(-F0, 0)) / np.sum(self.denergy32 * np.abs(F0))
+            raise FloatingPointError(
+                "EEDF must be finite before constructing collision slopes."
+            )
+        if (
+            np.any(F0 < 0)
+            and "negative" not in self._slope_diagnostics_seen
+        ):
+            self._slope_diagnostics_seen.add("negative")
+            negative_mass = np.sum(
+                self.denergy32 * np.maximum(-F0, 0)
+            ) / np.sum(self.denergy32 * np.abs(F0))
             log = logging.info if negative_mass < 1e-12 else logging.warning
-            log('Negative EEDF values during iteration: relative negative population %.3g; verify the final EEDF and rates.', negative_mass)
+            log(
+                "Negative EEDF values during iteration: relative negative "
+                "population %.3g; verify the final EEDF and rates.",
+                negative_mass,
+            )
         bad = ~np.isfinite(g)
         if np.any(bad):
             occupied = bad & (F0 > 0)
@@ -681,17 +677,45 @@ class BoltzmannSolver(object):
             if label not in self._slope_diagnostics_seen:
                 self._slope_diagnostics_seen.add(label)
                 if label == 'empty':
-                    logging.info('Nonfinite slopes only in nonpositive-EEDF cells: legacy zero-integral fallback; check final EEDF nonnegativity.')
+                    logging.info(
+                        "Nonfinite slopes only in nonpositive-EEDF cells: "
+                        "legacy zero-integral fallback; check final EEDF "
+                        "nonnegativity."
+                    )
                 else:
-                    mass = np.sum(self.denergy32[occupied] * F0[occupied]) / np.sum(self.denergy32 * F0)
-                    logging.warning('EEDF tail slopes undefined in %d occupied cells (energy %.6g..%.6g eV; discrete population fraction %.3g). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.',
-                                    np.count_nonzero(occupied), self.cenergy[occupied].min(),
-                                    self.cenergy[occupied].max(), mass)
-        
+                    mass = np.sum(
+                        self.denergy32[occupied] * F0[occupied]
+                    ) / np.sum(self.denergy32 * F0)
+                    logging.warning(
+                        "EEDF tail slopes undefined in %d occupied cells "
+                        "(energy %.6g..%.6g eV; discrete population fraction "
+                        "%.3g). Legacy zero-integral fallback retained; "
+                        "check grid/cutoff convergence before ignoring.",
+                        np.count_nonzero(occupied),
+                        self.cenergy[occupied].min(),
+                        self.cenergy[occupied].max(),
+                        mass,
+                    )
+
         return g
 
 
     def _PQ(self, F0, reactions=None):
+        """Build the sparse collision transition matrix.
+
+        Parameters
+        ----------
+        F0 : array-like
+            Current EEDF used to estimate collision slopes.
+        reactions : iterable of tuple, optional
+            ``(target, process)`` pairs. Defaults to active inelastic
+            processes.
+
+        Returns
+        -------
+        scipy.sparse.coo_matrix
+            Collision matrix mapping the EEDF to collision source terms.
+        """
         PQ = sparse.csr_matrix((self.n, self.n))
 
         g = self._g(F0)
@@ -704,47 +728,44 @@ class BoltzmannSolver(object):
         for t, k in reactions:
             r = t.density * GAMMA * k.scatterings(g, self.cenergy)
             in_factor = k.in_factor
-            
+
             data.extend([in_factor * r, -r])
             rows.extend([k.i, k.j])
             cols.extend([k.j, k.j])
 
         data, rows, cols = (np.hstack(x) for x in (data, rows, cols))
-        PQ = sparse.coo_matrix((data, (rows, cols)),
-                              shape=(self.n, self.n))
+        PQ = sparse.coo_matrix(
+            (data, (rows, cols)),
+            shape=(self.n, self.n),
+        )
 
         return PQ
 
-    ##
-    # Now some functions to calculate rates transport parameters from the
-    # converged F0        
     def rate(self, F0, k, weighted=False):
-        """ Calculates the rate of a process from a (usually converged) EEDF.
+        """Calculate a collision-process rate from an EEDF.
 
         Parameters
         ----------
-        F0 : array of floats
-           Distribution function.
-        k : :class:`process.Process` or string
-           The process whose rate we want to calculate.  If `k` is a string,
-           it is passed to :func:`search` to obtain a process instance.
-        weighted : boolean, optional
-           If true, the rate is multiplied by the density of the target.
+        F0 : array-like
+            EEDF values at cell centers.
+        k : process.Process or str
+            Process instance or signature accepted by :meth:`search`.
+        weighted : bool, optional
+            If ``True``, multiply the rate by the target density.
 
         Returns
         -------
-        rate : float
-           The rate of the given process according to `F0`.
+        float
+            Rate of the process for the given EEDF.
 
         Examples
         --------
-        >>> k_ionization = bsolver.rate(F0, "N2 -> N2^+")
+        >>> rate = bsolver.rate(F0, "N2 -> N2^+")  # doctest: +SKIP
 
 
         See Also
         --------
-        search : Find a process that matches a given signature.
-
+        search
         """
         g = self._g(F0)
 
@@ -755,39 +776,40 @@ class BoltzmannSolver(object):
 
         r = k.scatterings(g, self.cenergy)
 
-        P = sparse.coo_matrix((GAMMA * r, (k.j, np.zeros(r.shape))), 
-                              shape=(self.n, 1)).todense()
-                              
+        P = sparse.coo_matrix(
+            (GAMMA * r, (k.j, np.zeros(r.shape))),
+            shape=(self.n, 1),
+        ).todense()
+
         P = np.squeeze(np.array(P))
 
         rate = F0.dot(P)
         if weighted:
             rate *= k.target.density
-            
+
         return rate
 
 
     def mobility(self, F0):
-        """ Calculates the reduced mobility (mobility * N) from the EEDF.
+        """Calculate the reduced electron mobility from an EEDF.
 
         Parameters
         ----------
-        F0 : array of floats
-           The EEDF used to compute the mobility.
+        F0 : array-like
+            EEDF values at cell centers.
 
         Returns
         -------
-        mun : float
-           The reduced mobility (mu * n) of the electrons in SI 
-           units (V / m / s).
+        float
+            Reduced mobility (mobility times gas density) in SI units.
 
         Examples
         --------
-        >>> mun = bsolver.mobility(F0)
+        >>> mun = bsolver.mobility(F0)  # doctest: +SKIP
 
         See Also
         --------
-        diffusion : Find the reduced diffusion rate from the EEDF.
+        diffusion
         """
 
         DF0 = np.r_[0.0, np.diff(F0) / np.diff(self.cenergy), 0.0]
@@ -803,22 +825,21 @@ class BoltzmannSolver(object):
 
 
     def diffusion(self, F0):
-        """ Calculates the diffusion coefficient from a 
-        distribution function.
+        """Calculate the reduced electron diffusion coefficient.
 
         Parameters
         ----------
-        F0 : array of floats
-           The EEDF used to compute the diffusion coefficient.
+        F0 : array-like
+            EEDF values at cell centers.
 
         Returns
         -------
-        diffn : float
-           The reduced diffusion coefficient of electrons in SI units..
+        float
+            Reduced diffusion coefficient in SI units.
 
         See Also
         --------
-        mobility : Find the reduced mobility from the EEDF.
+        mobility
 
         """
 
@@ -839,20 +860,19 @@ class BoltzmannSolver(object):
 
 
     def mean_energy(self, F0):
-        """ Calculates the mean energy from a distribution function.
+        """Calculate the mean electron energy.
 
         Parameters
         ----------
-        F0 : array of floats
-           The EEDF used to compute the diffusion coefficient.
+        F0 : array-like
+            EEDF values at cell centers.
 
         Returns
         -------
-        energy : float
-           The mean energy of electrons in the EEDF.
+        float
+            Mean electron energy in eV.
 
         """
 
         de52 = np.diff(self.benergy**2.5)
         return np.sum(0.4 * F0 * de52)
-
