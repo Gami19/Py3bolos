@@ -86,16 +86,12 @@ class Process(object):
             If an energy or cross-section value is negative.
         """
         self.target_name = target
-
-        # We will link this later
+        # Set by Target.add_process() when this process is registered.
         self.target = None
-
         self.kind = kind
         self.data = np.array(data)
-
         self.x = self.data[:, 0]
         self.y = self.data[:, 1]
-
         self.comment = comment
         self.mass_ratio = mass_ratio
         self.product = product
@@ -103,7 +99,6 @@ class Process(object):
         self.weight_ratio = weight_ratio
         self.interp = padinterp(self.data)
         self.isnull = False
-
         self.in_factor = self.IN_FACTOR.get(self.kind)
         self.shift_factor = self.SHIFT_FACTOR.get(self.kind)
 
