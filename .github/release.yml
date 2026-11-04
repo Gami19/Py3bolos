@@ -1,0 +1,46 @@
+# Configure GitHub's automatically generated release notes using PR labels.
+# This file groups merged pull requests; it does not define a release body,
+# release version, or validation results.
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+  categories:
+    - title: Breaking Changes and Compatibility
+      labels:
+        - Semver-Major
+        - breaking-change
+    - title: Numerical Reliability and Bug Fixes
+      labels:
+        - bug
+        - bugfix
+        - numerical-stability
+    - title: New Features and Enhancements
+      labels:
+        - Semver-Minor
+        - enhancement
+        - feature
+    - title: Performance and Code Modernization
+      labels:
+        - performance
+        - refactor
+        - modernization
+    - title: Validation and BOLSIG+ Comparisons
+      labels:
+        - validation
+        - testing
+        - benchmark
+        - bolsig-comparison
+    - title: Documentation and Examples
+      labels:
+        - documentation
+        - examples
+    - title: Dependencies and Release Infrastructure
+      labels:
+        - dependencies
+        - build
+        - ci
+        - release
+    - title: Other Changes
+      labels:
+        - "*"

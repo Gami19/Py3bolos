@@ -1072,7 +1072,7 @@ class BoltzmannSolver:
     def mobility(self, F0: FloatArray) -> float:
         r"""Calculate the reduced electron mobility from an EEDF.
 
-        Parameter
+        Parameters
         ----------
         F0 : array-like
             EEDF values at cell centers.

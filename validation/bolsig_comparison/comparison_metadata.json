@@ -1,0 +1,169 @@
+{
+  "environment": {
+    "python": "3.14.3",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "matplotlib": "3.11.2",
+    "pandas": "3.1.0",
+    "cross_section_sha256": "7e96a9137c3bca3ff64c10afee9077b6f3742f4823d3dea9f095b689449618e8",
+    "bolsig_export_sha256": "bb66e2d255da5ab70354c6ad803031a2601d2c3e39bfd821c391ac959ed86708",
+    "source_sha256": {
+      "__init__.py": "c3a77913ffc018e4d85ac049f79f980e2b9d7dea28fe2ad01ec70feca86a7fbb",
+      "grid.py": "5171ee4d4b28db39fa7d0f2af1cc767cbbe8138def7ed30a503d03d15cbac3c0",
+      "parser.py": "4d91c53c1faec9949cbe4cbd457d0f2e65bfc62e52209ea20ea6abd1f85ca896",
+      "process.py": "0bcb9770ef9e7d5b9fe249e6b758a2a224fd0eae7e8b549c01bfdcc492d48fbe",
+      "solver.py": "ea827a799d361e75f308e29526d8a28bc91f815bbe2ea79140386295114e7db9",
+      "target.py": "f4543ec495e6cd5ff4eb73d66b1ed179db60392920e7ef3f7631d553a7028f06"
+    }
+  },
+  "reference_version": "BOLSIG+ version: 07/2024",
+  "requested_fields_Td": [
+    1,
+    3,
+    10,
+    30,
+    100,
+    300,
+    1000,
+    2000
+  ],
+  "actual_fields_Td": [
+    1.0,
+    3.05519,
+    10.0095,
+    29.9011,
+    99.914,
+    300.038,
+    1001.37,
+    2000.0
+  ],
+  "configuration": {
+    "primary_cells": 600,
+    "refined_cells": 1200,
+    "rtol": 1e-07,
+    "core_fraction": 1e-06,
+    "rate_relative_floor_m3_s": 1e-25
+  },
+  "summary": {
+    "max_abs_transport_difference_percent": 0.8426352104587087,
+    "max_weighted_eedf_L1_percent": 0.5007861143937815,
+    "max_reported_selected_rate_difference_percent": 13.321327116361402,
+    "max_abs_BOLOS_refinement_change_percent": 0.9578713872251066,
+    "max_negative_population_fraction": 9.473514766244826e-15
+  },
+  "solver_logs_and_runtime_warnings": "1 Td\nTarget N2: EFFECTIVE minus INELASTIC is negative at 6 table nodes (1500..10000 eV); clipped to zero. Interpolated ELASTIC may be affected within 1000..10000 eV. This can reflect constant extrapolation beyond individual tables, not necessarily invalid source data.\nEEDF tail slopes undefined in 2 occupied cells (energy 18.7..20.3 eV; discrete population fraction 3.94e-17). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\nEEDF tail slopes undefined in 1 occupied cells (energy 2.09037..2.09037 eV; discrete population fraction 1.31e-15). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\nEEDF tail slopes undefined in 11 occupied cells (energy 2.16207..4.32722 eV; discrete population fraction 6.39e-20). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\nEEDF tail slopes undefined in 13 occupied cells (energy 2.10345..4.3261 eV; discrete population fraction 8.16e-18). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\n\nNumPy warnings: []\n\n3.05519 Td\nTarget N2: EFFECTIVE minus INELASTIC is negative at 6 table nodes (1500..10000 eV); clipped to zero. Interpolated ELASTIC may be affected within 1000..10000 eV. This can reflect constant extrapolation beyond individual tables, not necessarily invalid source data.\nEEDF tail slopes undefined in 2 occupied cells (energy 18.1..19.5 eV; discrete population fraction 5.12e-17). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\nEEDF tail slopes undefined in 5 occupied cells (energy 2.61526..10.5147 eV; discrete population fraction 8.57e-17). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\nEEDF tail slopes undefined in 9 occupied cells (energy 2.29908..9.39016 eV; discrete population fraction 5.94e-18). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\nEEDF tail slopes undefined in 9 occupied cells (energy 2.2938..9.38145 eV; discrete population fraction 2.6e-17). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\n\nNumPy warnings: []\n\n10.0095 Td\nTarget N2: EFFECTIVE minus INELASTIC is negative at 6 table nodes (1500..10000 eV); clipped to zero. Interpolated ELASTIC may be affected within 1000..10000 eV. This can reflect constant extrapolation beyond individual tables, not necessarily invalid source data.\nEEDF tail slopes undefined in 4 occupied cells (energy 18.1..20.7 eV; discrete population fraction 7.98e-17). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\nEEDF tail slopes undefined in 2 occupied cells (energy 14.6823..16.1654 eV; discrete population fraction 8.11e-18). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\nEEDF tail slopes undefined in 4 occupied cells (energy 6.88598..14.8358 eV; discrete population fraction 4.74e-19). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\nEEDF tail slopes undefined in 5 occupied cells (energy 6.88788..18.9776 eV; discrete population fraction 4.3e-19). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\n\nNumPy warnings: []\n\n29.9011 Td\nTarget N2: EFFECTIVE minus INELASTIC is negative at 6 table nodes (1500..10000 eV); clipped to zero. Interpolated ELASTIC may be affected within 1000..10000 eV. This can reflect constant extrapolation beyond individual tables, not necessarily invalid source data.\nEEDF tail slopes undefined in 2 occupied cells (energy 19.9..29.9 eV; discrete population fraction 1.33e-16). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\nEEDF tail slopes undefined in 1 occupied cells (energy 21.7856..21.7856 eV; discrete population fraction 2.54e-19). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\n\nNumPy warnings: []\n\n99.914 Td\nTarget N2: EFFECTIVE minus INELASTIC is negative at 6 table nodes (1500..10000 eV); clipped to zero. Interpolated ELASTIC may be affected within 1000..10000 eV. This can reflect constant extrapolation beyond individual tables, not necessarily invalid source data.\nEEDF tail slopes undefined in 1 occupied cells (energy 53.0439..53.0439 eV; discrete population fraction 5.16e-19). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\n\nNumPy warnings: []\n\n300.038 Td\nTarget N2: EFFECTIVE minus INELASTIC is negative at 6 table nodes (1500..10000 eV); clipped to zero. Interpolated ELASTIC may be affected within 1000..10000 eV. This can reflect constant extrapolation beyond individual tables, not necessarily invalid source data.\nEEDF tail slopes undefined in 1 occupied cells (energy 99.7804..99.7804 eV; discrete population fraction 1.68e-13). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\nEEDF tail slopes undefined in 1 occupied cells (energy 142.123..142.123 eV; discrete population fraction 1.95e-18). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\n\nNumPy warnings: []\n\n1001.37 Td\nTarget N2: EFFECTIVE minus INELASTIC is negative at 6 table nodes (1500..10000 eV); clipped to zero. Interpolated ELASTIC may be affected within 1000..10000 eV. This can reflect constant extrapolation beyond individual tables, not necessarily invalid source data.\nEEDF tail slopes undefined in 1 occupied cells (energy 99.7397..99.7397 eV; discrete population fraction 2.79e-05). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\nEEDF tail slopes undefined in 1 occupied cells (energy 376.92..376.92 eV; discrete population fraction 1.72e-12). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\n\nNumPy warnings: []\n\n2000 Td\nTarget N2: EFFECTIVE minus INELASTIC is negative at 6 table nodes (1500..10000 eV); clipped to zero. Interpolated ELASTIC may be affected within 1000..10000 eV. This can reflect constant extrapolation beyond individual tables, not necessarily invalid source data.\nNegative EEDF values during iteration: relative negative population 0.00659; verify the final EEDF and rates.\nEEDF tail slopes undefined in 1 occupied cells (energy 2.7..2.7 eV; discrete population fraction 0.000149). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\nTarget N2: clipped ELASTIC range 1000..10000 eV overlaps grid 0..1044.17 eV. Check cross-section extrapolation.\nEEDF tail slopes undefined in 1 occupied cells (energy 99.807..99.807 eV; discrete population fraction 0.00153). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\nTarget N2: clipped ELASTIC range 1000..10000 eV overlaps grid 0..1044.17 eV. Check cross-section extrapolation.\nTarget N2: clipped ELASTIC range 1000..10000 eV overlaps grid 0..1566.26 eV. Check cross-section extrapolation.\nEEDF tail slopes undefined in 1 occupied cells (energy 1043.19..1043.19 eV; discrete population fraction 6.9e-12). Legacy zero-integral fallback retained; check grid/cutoff convergence before ignoring.\n\nNumPy warnings: []",
+  "reference_settings": [
+    {
+      "run": 1,
+      "field": 1.0,
+      "temperature": 300.0,
+      "N2": 0.8,
+      "O2": 0.2,
+      "frequency": 0.0,
+      "sharing": 1.0,
+      "growth": 1.0,
+      "mean_energy_eV": 0.227472,
+      "mobility_N": 6.32633e+24,
+      "diffusion_N": 1.28796e+24,
+      "grid_points": 100.0
+    },
+    {
+      "run": 33,
+      "field": 3.05519,
+      "temperature": 300.0,
+      "N2": 0.8,
+      "O2": 0.2,
+      "frequency": 0.0,
+      "sharing": 1.0,
+      "growth": 1.0,
+      "mean_energy_eV": 0.51752,
+      "mobility_N": 3.7767e+24,
+      "diffusion_N": 1.56579e+24,
+      "grid_points": 100.0
+    },
+    {
+      "run": 68,
+      "field": 10.0095,
+      "temperature": 300.0,
+      "N2": 0.8,
+      "O2": 0.2,
+      "frequency": 0.0,
+      "sharing": 1.0,
+      "growth": 1.0,
+      "mean_energy_eV": 0.938597,
+      "mobility_N": 2.02989e+24,
+      "diffusion_N": 1.86809e+24,
+      "grid_points": 100.0
+    },
+    {
+      "run": 121,
+      "field": 29.9011,
+      "temperature": 300.0,
+      "N2": 0.8,
+      "O2": 0.2,
+      "frequency": 0.0,
+      "sharing": 1.0,
+      "growth": 1.0,
+      "mean_energy_eV": 1.08531,
+      "mobility_N": 1.52574e+24,
+      "diffusion_N": 1.87931e+24,
+      "grid_points": 100.0
+    },
+    {
+      "run": 223,
+      "field": 99.914,
+      "temperature": 300.0,
+      "N2": 0.8,
+      "O2": 0.2,
+      "frequency": 0.0,
+      "sharing": 1.0,
+      "growth": 1.0,
+      "mean_energy_eV": 2.63342,
+      "mobility_N": 1.17385e+24,
+      "diffusion_N": 2.56732e+24,
+      "grid_points": 100.0
+    },
+    {
+      "run": 387,
+      "field": 300.038,
+      "temperature": 300.0,
+      "N2": 0.8,
+      "O2": 0.2,
+      "frequency": 0.0,
+      "sharing": 1.0,
+      "growth": 1.0,
+      "mean_energy_eV": 7.10438,
+      "mobility_N": 9.09732e+23,
+      "diffusion_N": 4.67691e+24,
+      "grid_points": 100.0
+    },
+    {
+      "run": 707,
+      "field": 1001.37,
+      "temperature": 300.0,
+      "N2": 0.8,
+      "O2": 0.2,
+      "frequency": 0.0,
+      "sharing": 1.0,
+      "growth": 1.0,
+      "mean_energy_eV": 16.5891,
+      "mobility_N": 6.41814e+23,
+      "diffusion_N": 7.46159e+24,
+      "grid_points": 100.0
+    },
+    {
+      "run": 999,
+      "field": 2000.0,
+      "temperature": 300.0,
+      "N2": 0.8,
+      "O2": 0.2,
+      "frequency": 0.0,
+      "sharing": 1.0,
+      "growth": 1.0,
+      "mean_energy_eV": 29.899,
+      "mobility_N": 5.12462e+23,
+      "diffusion_N": 1.04763e+25,
+      "grid_points": 100.0
+    }
+  ]
+}
