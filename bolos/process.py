@@ -49,7 +49,9 @@ class Process(object):
     [0.0, 10.0]
     """
 
-    # The factor of in-scattering.
+    # IN_FACTOR is the number of electrons in the final state for an inelastic electron collision.
+    # ex. EXCITATION: M + e -> M* + e', IN_FACTOR = 1, SHIFT_FACTOR = 1
+    # ex. IONIZATION: M + e -> M+ + 2e', IN_FACTOR = 2, SHIFT_FACTOR = 2
     IN_FACTOR = {
         'EXCITATION': 1,
         'IONIZATION': 2,
@@ -59,7 +61,9 @@ class Process(object):
         'EFFECTIVE': 1,
     }
 
-    # The shift factor for inelastic collisions.
+    # SHIFT_FACTOR is the energy shift factor for inelastic electron collisions.
+    # This factor represents the energy distribution of the outgoing electron(s) after the collision.
+    # Before energy = SHIFT_FACTOR * After energy + threshold
     SHIFT_FACTOR = {
         'EXCITATION': 1,
         'IONIZATION': 2,
@@ -86,8 +90,7 @@ class Process(object):
             If an energy or cross-section value is negative.
         """
         self.target_name = target
-        # Set by Target.add_process() when this process is registered.
-        self.target = None
+        self.target = None # Set by Target.add_process() when this process is registered.
         self.kind = kind
         self.data = np.array(data)
         self.x = self.data[:, 0]
@@ -101,6 +104,7 @@ class Process(object):
         self.isnull = False
         self.in_factor = self.IN_FACTOR.get(self.kind)
         self.shift_factor = self.SHIFT_FACTOR.get(self.kind)
+        self.cached_grid = None
 
         if np.amin(self.data[:, 0]) < 0:
             raise ValueError(
@@ -112,7 +116,6 @@ class Process(object):
                 "Negative cross section for %s" % str(self)
             )
 
-        self.cached_grid = None
 
     def scatterings(self, g, eps):
         """Calculate scattering integrals for the cached energy grid.
@@ -134,6 +137,8 @@ class Process(object):
         -----
         Call :meth:`set_grid_cache` before this method. The cache must
         correspond to the same grid used to produce ``g`` and ``eps``.
+        "gj" and "epsj" are the slope and energy values for the cached intervals.
+        ".eps" and ".sigma" are the energy and cross-section values for the cached intervals.
 
         Examples
         --------
@@ -150,12 +155,14 @@ class Process(object):
         ... )
         True
         """
+        # self.j is the index of the grid cell that to be integrated over.
         if len(self.j) == 0:
             # Avoid indexing g[self.j] when no interval overlaps the grid.
             return np.array([], dtype='f')
 
         gj = g[self.j]
         epsj = eps[self.j]
+        # Integrate the linear interpolated cross section times the exponential over the cached intervals.
         r = int_linexp0(
             self.eps[:, 0],
             self.eps[:, 1],
