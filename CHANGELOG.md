@@ -8,9 +8,6 @@ Version 1.0.0 establishes the current Python 3 derivative as its release
 baseline. It includes code modernization, numerical robustness improvements,
 and documentation of the computational workflow.
 
-See [RELEASE_NOTES.md](RELEASE_NOTES.md) for the publication-ready v1.0.0 notes,
-including the BOLSIG+ comparison results and compatibility information.
-
 ### Improvements
 
 - Ported the computational library to Python 3 with explicit relative imports
