@@ -1,0 +1,9 @@
+collision_ID,species,kind,product,threshold_eV,BOLSIG_label
+C2,N2,EXCITATION,N2(rot),0.02,N2    Excitation    0.020 eV
+C4,N2,EXCITATION,N2(v1res),0.291,N2    Excitation    0.29 eV
+C21,N2,EXCITATION,N2(C3),11.03,N2    Excitation    11.03 eV
+C25,N2,IONIZATION,N2^+,15.6,N2    Ionization    15.60 eV
+C28,O2,ATTACHMENT,O^-+O,0.0,O2    Attachment
+C31,O2,EXCITATION,O2(v1),0.19,O2    Excitation    0.19 eV
+C37,O2,EXCITATION,O2(a1),0.977,O2    Excitation    0.98 eV
+C43,O2,IONIZATION,O2^+,12.06,O2    Ionization    12.06 eV

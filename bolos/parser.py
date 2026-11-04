@@ -1,16 +1,56 @@
-"""Parse BOLSIG+-compatible cross-section files independently of BOLOS.
+r"""Parse BOLSIG+-compatible cross-section files independently of BOLOS.
 
-Most users only need :func:`parse`. Processes are returned as dictionaries
+Most users only need :func:`parse`. Processes are returned as
+dictionaries
 so that this module can also be reused outside BOLOS.
+
+Examples
+--------
+>>> from bolos.parser import parse
+>>> from io import StringIO
+>>> parse(StringIO("Unrecognized header\n"))
+[]
 """
 
 import logging
 import re
+from collections.abc import Iterator
+from typing import TypedDict
 
 import numpy as np
 
+logger = logging.getLogger(__name__)
 
-def parse(fp):
+
+class ProcessDict(TypedDict, total=False):
+    r"""Describe parsed fields accepted by the collision constructors.
+
+    Notes
+    -----
+    This TypedDict describes ordinary dictionaries at runtime. Fields
+    vary
+    with the process kind; parsing always supplies kind, target,
+    comment,
+    and data. The data table remains two-dimensional for a single row.
+
+    Examples
+    --------
+    >>> definition = ProcessDict(kind="ELASTIC", target="Ar")
+    >>> definition["target"]
+    'Ar'
+    """
+
+    kind: str
+    target: str
+    product: str
+    comment: str
+    data: list[list[float]]
+    mass_ratio: float
+    threshold: float
+    weight_ratio: float
+
+
+def parse(fp: Iterator[str]) -> list[ProcessDict]:
     r"""Parse processes from a LXCat cross-section file.
 
     Parameters
@@ -45,33 +85,26 @@ def parse(fp):
     Examples
     --------
     >>> from io import StringIO
-    >>> text = ("ATTACHMENT\nO2 -> O-\nExample\n-----\n"
-    ...         "0 0\n1 2e-20\n-----\n")
+    >>> text = "ATTACHMENT\nO2 -> O-\nExample\n-----\n"
+    >>> text += "0 0\n1 2e-20\n-----\n"
     >>> processes = parse(StringIO(text))
-    >>> processes[0]['kind'], processes[0]['target']
+    >>> processes[0]["kind"], processes[0]["target"]
     ('ATTACHMENT', 'O2')
-    >>> processes[0]['data']
+    >>> processes[0]["data"]
     [[0.0, 0.0], [1.0, 2e-20]]
     """
-    processes = []
+    processes: list[ProcessDict] = []
     for line in fp:
-        try:
-            key = line.strip()
-            # Get the kind of process., ex. "EXCITATION" -> _read_excitation
-            fread = KEYWORDS[key]
+        key = line.strip()
+        reader = KEYWORDS.get(key)
+        if reader is None:
+            continue
+        logger.debug("New process of type '%s'", key)
+        process = reader(fp)
+        process["kind"] = key
+        processes.append(process)
 
-            # If the key is not found, we do not reach this line.
-            logging.debug("New process of type '%s'", key)
-
-            # call the reader for corresponding process type., ex. _read_excitation(fp)
-            d = fread(fp)
-            d['kind'] = key
-            processes.append(d)
-
-        except KeyError:
-            pass
-
-    logging.info("Parsing complete. %d processes read.", len(processes))
+    logger.info("Parsing complete. %d processes read.", len(processes))
 
     return processes
 
@@ -80,7 +113,7 @@ def parse(fp):
 RE_SEP = re.compile("-----+")
 
 
-def _read_until_sep(fp):
+def _read_until_sep(fp: Iterator[str]) -> list[str]:
     r"""Read stripped lines up to a separator or the end of the stream.
 
     Parameters
@@ -118,7 +151,9 @@ def _read_until_sep(fp):
     return lines
 
 
-def _read_block(fp, has_arg=True):
+def _read_block(
+    fp: Iterator[str], has_arg: bool = True
+) -> tuple[str, str | None, str, list[list[float]]]:
     r"""Read a process block after its keyword line.
 
     Parameters
@@ -139,11 +174,9 @@ def _read_block(fp, has_arg=True):
         Stripped argument line, or None when `has_arg` is False.
     comment : str
         Stripped comment lines joined by newline characters.
-    data : list or float
-        Numeric data from ``numpy.loadtxt(...).tolist()``. A table with
-        multiple rows and columns produces a nested list; a single
-        row or column produces a flat list. A single value produces a
-        float.
+    data : list of list of float
+        Numeric table retaining two dimensions, including for a single
+        row.
 
     Raises
     ------
@@ -170,14 +203,14 @@ def _read_block(fp, has_arg=True):
 
     comment = "\n".join(_read_until_sep(fp))
 
-    logging.debug("Read process '%s'", target)
-    data = np.loadtxt(_read_until_sep(fp)).tolist()
+    logger.debug("Read process '%s'", target)
+    data = np.loadtxt(_read_until_sep(fp), ndmin=2).tolist()
 
     return target, arg, comment, data
 
 
 # Specialized readers return dictionaries containing process attributes.
-def _read_momentum(fp):
+def _read_momentum(fp: Iterator[str]) -> ProcessDict:
     r"""Read a MOMENTUM, ELASTIC, or EFFECTIVE process block.
 
     Parameters
@@ -208,12 +241,14 @@ def _read_momentum(fp):
     >>> from io import StringIO
     >>> text = "Ar\n1e-5\nExample\n-----\n0 0\n1 2e-20\n-----\n"
     >>> process = _read_momentum(StringIO(text))
-    >>> process['target'], process['mass_ratio']
+    >>> process["target"], process["mass_ratio"]
     ('Ar', 1e-05)
     """
     target, arg, comment, data = _read_block(fp, has_arg=True)
+    if arg is None:
+        raise ValueError("A process argument line is required")
     mass_ratio = float(arg.split()[0])
-    d = dict(
+    d: ProcessDict = dict(
         target=target,
         mass_ratio=mass_ratio,
         comment=comment,
@@ -223,10 +258,10 @@ def _read_momentum(fp):
     return d
 
 
-RE_ARROW = re.compile('<?->')
+RE_ARROW = re.compile("<?->")
 
 
-def _read_excitation(fp):
+def _read_excitation(fp: Iterator[str]) -> ProcessDict:
     r"""Read an EXCITATION or IONIZATION process block.
 
     Parameters
@@ -263,35 +298,37 @@ def _read_excitation(fp):
     Examples
     --------
     >>> from io import StringIO
-    >>> text = ("Ar <-> Ar*\n11.5 3\nExample\n-----\n"
-    ...         "12 0\n13 2e-20\n-----\n")
+    >>> text = "Ar <-> Ar*\n11.5 3\nExample\n-----\n"
+    >>> text += "12 0\n13 2e-20\n-----\n"
     >>> process = _read_excitation(StringIO(text))
-    >>> process['target'], process['product']
+    >>> process["target"], process["product"]
     ('Ar', 'Ar*')
-    >>> process['threshold'], process['weight_ratio']
+    >>> process["threshold"], process["weight_ratio"]
     (11.5, 3.0)
     """
     target, arg, comment, data = _read_block(fp, has_arg=True)
+    if arg is None:
+        raise ValueError("A process argument line is required")
     lhs, rhs = [s.strip() for s in RE_ARROW.split(target)]
 
-    d = dict(
+    d: ProcessDict = dict(
         target=lhs,
         product=rhs,
         comment=comment,
         data=data,
     )
 
-    if '<->' in target.split():
+    if "<->" in target.split():
         threshold, weight_ratio = float(arg.split()[0]), float(arg.split()[1])
-        d['weight_ratio'] = weight_ratio
+        d["weight_ratio"] = weight_ratio
     else:
         threshold = float(arg.split()[0])
 
-    d['threshold'] = threshold
+    d["threshold"] = threshold
     return d
 
 
-def _read_attachment(fp):
+def _read_attachment(fp: Iterator[str]) -> ProcessDict:
     r"""Read an ATTACHMENT process block without an argument line.
 
     Parameters
@@ -321,15 +358,19 @@ def _read_attachment(fp):
     >>> from io import StringIO
     >>> text = "O2 -> O-\nExample\n-----\n0 0\n1 2e-20\n-----\n"
     >>> process = _read_attachment(StringIO(text))
-    >>> process['target'], process['product'], process['threshold']
+    >>> (
+    ...     process["target"],
+    ...     process["product"],
+    ...     process["threshold"],
+    ... )
     ('O2', 'O-', 0.0)
     >>> text = "O2\nExample\n-----\n0 0\n1 2e-20\n-----\n"
-    >>> 'product' in _read_attachment(StringIO(text))
+    >>> "product" in _read_attachment(StringIO(text))
     False
     """
     target, arg, comment, data = _read_block(fp, has_arg=False)
 
-    d = dict(
+    d: ProcessDict = dict(
         comment=comment,
         data=data,
         threshold=0.0,
@@ -337,10 +378,10 @@ def _read_attachment(fp):
     lr = [s.strip() for s in RE_ARROW.split(target)]
 
     if len(lr) == 2:
-        d['target'] = lr[0]
-        d['product'] = lr[1]
+        d["target"] = lr[0]
+        d["product"] = lr[1]
     else:
-        d['target'] = target
+        d["target"] = target
 
     return d
 

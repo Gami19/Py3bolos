@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="bolos",
-    version="0.1",
+    version="1.0.0",
     description="A library to solve the Boltzmann equation",
     long_description="",
 
@@ -51,7 +51,7 @@ setup(
     extras_require={
         'samples': ['matplotlib'],
         'notebook': ['matplotlib', 'ipykernel'],
-        'validation': ['matplotlib', 'ipykernel', 'nbclient'],
+        'validation': ['matplotlib', 'ipykernel', 'nbclient', 'pandas'],
     },
     install_requires = ['numpy', 'scipy>=1.11'],
 
