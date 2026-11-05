@@ -1,0 +1,57 @@
+{
+  "python": "3.14.3",
+  "numpy": "2.5.4",
+  "scipy": "1.18.1",
+  "source_sha256": {
+    "grid.py": "5171ee4d4b28db39fa7d0f2af1cc767cbbe8138def7ed30a503d03d15cbac3c0",
+    "parser.py": "4d91c53c1faec9949cbe4cbd457d0f2e65bfc62e52209ea20ea6abd1f85ca896",
+    "process.py": "0bcb9770ef9e7d5b9fe249e6b758a2a224fd0eae7e8b549c01bfdcc492d48fbe",
+    "solver.py": "fd0a629e9c9a4d0507ba1beb8f0122e5ac7a13eba5571e00063afc2fd572f1a1",
+    "target.py": "f4543ec495e6cd5ff4eb73d66b1ed179db60392920e7ef3f7631d553a7028f06",
+    "__init__.py": "c3a77913ffc018e4d85ac049f79f980e2b9d7dea28fe2ad01ec70feca86a7fbb"
+  },
+  "input_sha256": {
+    "Phelps_N2-O2_20261026.txt": "7e96a9137c3bca3ff64c10afee9077b6f3742f4823d3dea9f095b689449618e8",
+    "N2-O2_80-20_2000Td.dat": "bb66e2d255da5ab70354c6ad803031a2601d2c3e39bfd821c391ac959ed86708"
+  },
+  "definition": "current unchanged; sign_flipped negates g only at Process.scatterings entry",
+  "helper": {
+    "cases": 182,
+    "max_relative_error": 3.0531133177191805e-14
+  },
+  "manufactured": {
+    "current": {
+      "cases": 72,
+      "max_rate_relative_error": 0.07391587720954929,
+      "max_matrix_L1_relative_error": 0.26929848805241974
+    },
+    "sign_flipped": {
+      "cases": 72,
+      "max_rate_relative_error": 1.1102230246251565e-15,
+      "max_matrix_L1_relative_error": 2.0611158379619138e-15
+    }
+  },
+  "bolsig": {
+    "current_600": {
+      "max_abs_transport_difference_percent": 0.5091298085126317,
+      "max_selected_rate_difference_percent": 13.308415708327171,
+      "max_eedf_L1_percent": 0.49662554646358753
+    },
+    "sign_flipped_600": {
+      "max_abs_transport_difference_percent": 0.4899276670378372,
+      "max_selected_rate_difference_percent": 13.77997969513708,
+      "max_eedf_L1_percent": 0.5202075960801691
+    },
+    "current_1200": {
+      "max_abs_transport_difference_percent": 0.5026983343972224,
+      "max_selected_rate_difference_percent": 13.972390229123777,
+      "max_eedf_L1_percent": 0.531102487522063
+    },
+    "sign_flipped_1200": {
+      "max_abs_transport_difference_percent": 0.5009380559986232,
+      "max_selected_rate_difference_percent": 14.128724517473156,
+      "max_eedf_L1_percent": 0.5340301301293424
+    }
+  },
+  "package_sources_unchanged": true
+}

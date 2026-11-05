@@ -835,8 +835,11 @@ class BoltzmannSolver:
 
         # Boundary values of z are unused because of the zero-flux
         # conditions.
+        # z is "Peclet number" for the Scharfetter-Gummel discretization.
         z = self.W * np.r_[np.nan, np.diff(self.cenergy), np.nan] / D
 
+        # a0, a1 are the "Scharfetter-Gummel coefficients",
+        # which are Bernoulli functions of z.
         a0 = self.W / (1 - np.exp(-z))
         a1 = self.W / (1 - np.exp(z))
 
@@ -845,16 +848,17 @@ class BoltzmannSolver:
         # No flux at the energy = 0 boundary
         diags[0, 0] = a0[1]
 
-        diags[0, 1:] = a0[2:] - a1[1:-1]
-        diags[1, :] = a1[:-1]
-        diags[2, :] = -a0[1:]
+        diags[0, 1:] = a0[2:] - a1[1:-1] # Main diagonal component
+        diags[1, :] = a1[:-1] # Upper diagonal component
+        diags[2, :] = -a0[1:] # Lower diagonal component
 
         # zero flux b.c.
         diags[2, -2] = -a0[-2]
         diags[0, -1] = -a1[-2]
 
-        diags[0, :] += G
+        diags[0, :] += G # Add growth term to the diagonal
 
+        # Generate a triagonal sparse matrix
         A = sparse.dia_matrix((diags, [0, 1, -1]), shape=(self.n, self.n))
 
         return A

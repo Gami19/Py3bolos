@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Corrected the logarithmic-slope sign passed by `Process.scatterings()` to
+  `int_linexp0()`, so local reconstruction follows
+  `F(E) = F(E_j) * exp(g_j * (E - E_j))`. The helper's public mathematical
+  contract and `_g()` derivative convention are unchanged.
+
+### Validation
+
+- Added independent nonflat-distribution regression tests for interval
+  integration, rates, weighted rates, and collision-matrix action.
+- The regression and documentation-example suite now passes 106 tests.
+- Updated the sign-audit reproducer to compare explicit `legacy` and
+  `corrected` modes without applying the correction twice.
+- Regenerated the BOLSIG+ comparison notebook using corrected production.
+  Current artifacts are isolated in `validation/bolsig_comparison_corrected/`;
+  archived pre-fix results are retained. The notebook's disabled export cell
+  is preserved; the new validation runner exports tables with `--export`.
+
 ## 1.0.0
 
 ### BOLOS Python 3: Modernization, reliability fixes, and documentation

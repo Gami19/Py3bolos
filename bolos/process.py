@@ -188,7 +188,7 @@ class Process:
         Parameters
         ----------
         g : array-like
-            Exponential slopes for the energy cells.
+            Logarithmic derivatives ``d(log(F))/dE`` at cell centers.
         eps : array-like
             Energy values at which the integrals are evaluated.
 
@@ -209,6 +209,11 @@ class Process:
         ".eps" and ".sigma" are the energy and cross-section values for
         the cached intervals.
 
+        Reconstruct the local distribution as
+        ``F(E) = F(E_j) * exp(g_j * (E - E_j))``.
+        The helper uses the reversed coordinate ``E_j - E``, so pass the
+        negative of the supplied logarithmic derivative.
+
         Examples
         --------
         >>> process = Process(
@@ -223,6 +228,16 @@ class Process:
         ...     [0.5, 1.5],
         ... )
         True
+        >>> slopes = np.full(2, -0.5)
+        >>> bool(
+        ...     np.isclose(
+        ...         process.scatterings(
+        ...             slopes, np.array([0.5, 1.5])
+        ...         )[1],
+        ...         1.47374623555521,
+        ...     )
+        ... )
+        True
         """
         # self.j is the index of the grid cell that to be integrated
         # over.
@@ -231,7 +246,8 @@ class Process:
             # grid.
             return np.array([], dtype=np.float64)
 
-        gj = g[self.j]
+        # int_linexp0 uses exp(g * (E_j - E)); g is d(log(F))/dE here.
+        gj = -g[self.j]
         epsj = eps[self.j]
         # Integrate the linear interpolated cross section times the
         # exponential over the cached intervals.
@@ -462,7 +478,9 @@ def int_linexp0(
     u0, u1 : array-like
         Values of the linear function at ``a`` and ``b``.
     g : array-like
-        Exponential slopes. Non-finite slopes contribute zero.
+        Coefficients in ``exp(g * (x0 - x))``. For local distribution
+        reconstruction, pass ``-d(log(F))/dx``. Non-finite coefficients
+        contribute zero.
     x0 : array-like
         Reference energy in the exponential.
 
