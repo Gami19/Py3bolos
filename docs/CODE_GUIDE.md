@@ -203,6 +203,12 @@ integral from a to b of u(x) * exp(g * (x0 - x)) * x dx
 ```
 
 Here `u(x)` is the linearly interpolated cross section. The helper uses
+the reverse-coordinate exponential convention: `_g()` supplies the derivative
+`d(log(F))/dE`, and `scatterings()` passes its negative to the helper. This
+reconstructs `F(E_j) * exp(g_j * (E - E_j))` on each incoming cell.
+See the [sign audit](COLLISION_SIGN_VALIDATION.md) for the adopted correction.
+
+The helper uses
 expressions based on `expm1` and an eight-point Gauss–Legendre calculation
 for small dimensionless slopes to avoid cancellation near zero slope.
 Nonfinite slopes retain the legacy zero contribution; nonfinite results

@@ -1,5 +1,8 @@
 # BOLOS documentation
 
+- [Collision reconstruction sign audit](COLLISION_SIGN_VALIDATION.md): independent
+  integral and matrix checks, the adopted sign correction, and its numerical
+  impact compared with the legacy reconstruction.
 - [BOLOS vs BOLSIG+ validation notebook](../validate_bolsig.ipynb): executed
   comparisons of EEDFs, selected reaction rates, and electron transport,
   including mesh sensitivity checks and exported tables and figures.

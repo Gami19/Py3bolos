@@ -81,7 +81,9 @@ Adjust the gas composition, gas temperature, reduced electric field, and energy 
 | `samples/` | Computation and plotting examples |
 | `run_basic.ipynb` | Calculation notebook |
 | [validate_bolsig.ipynb](validate_bolsig.ipynb) | Executed EEDF, reaction-rate, and transport comparison against the included BOLSIG+ export |
-| `validation/bolsig_comparison/` | Generated comparison tables, figures, and provenance metadata |
+| `validation/bolsig_comparison_corrected/` | Current comparison tables, figures, and provenance after the reconstruction-sign correction |
+| `validation/bolsig_comparison/` | Archived comparison results before the reconstruction-sign correction |
+| `validation/collision_sign_corrected/` | Independent integral checks and corrected-versus-legacy solver comparisons |
 | [EXECUTION_GUIDE_EN.md](EXECUTION_GUIDE_EN.md) | Detailed English execution guide |
 | [EXECUTION_GUIDE_js.md](EXECUTION_GUIDE_js.md) | Detailed Japanese execution guide, including paths for the original local environment |
 | [PORTING_NOTES.md](PORTING_NOTES.md) | Porting changes and limitations |
@@ -93,6 +95,8 @@ The historical validation covers a limited set of cases, including five electric
 For a reproducible comparison using the files included here, run [validate_bolsig.ipynb](validate_bolsig.ipynb). It compares eight exported field conditions against BOLSIG+ 07/2024, including EEDFs, eight representative reaction rates, mean energy, reduced mobility, reduced diffusion, and their derived characteristic energy. It also checks mesh and cutoff sensitivity and exports all 43 rates. Install its dependencies with `python -m pip install -e ".[validation]"`. The reference is the supplied BOLSIG+ output; the notebook does not launch BOLSIG+ itself.
 
 Some historical documentation and validation records refer to `run_phelps.ipynb`, which is not included in this distribution. Use `run_basic.ipynb` for the included notebook example.
+
+The current branch corrects the local exponential reconstruction sign in collision integrals. See [the sign audit](docs/COLLISION_SIGN_VALIDATION.md) for the derivation and numerical impact. To refresh the comparison notebook and explicitly export its tables, run `python validation/refresh_bolsig_notebook.py --export`. Its existing commented export cell is preserved; the runner exports into `validation/bolsig_comparison_corrected/` separately from archived results.
 
 **The original BOLOS source and the local comparison script `validate_port.py` are not included in this distribution.** The comparison script requires a separate copy of the original source and is excluded from version control via `.gitignore`. The notebook and standard calculation examples do not require the original source. Historical validation records are retained for reference.
 
