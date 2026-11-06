@@ -17,22 +17,38 @@ The main changes include Python 3 syntax, string and iterator handling, explicit
 
 `setup.py` specifies Python 3.10 or later. NumPy and SciPy are required for computation. Not every combination of Python and dependency versions has been tested.
 
-Run the following commands from the directory containing this README. A virtual environment is recommended.
+Run the commands from the directory containing this README. Create a virtual environment there. `.venv/` is listed in `.gitignore`.
 
-```console
-python -m pip install -e .
-```
+macOS and Linux:
 
-Install optional dependencies for plotting or notebooks as needed:
-
-```console
-python -m pip install -e ".[samples]"
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
 python -m pip install -e ".[notebook]"
 ```
 
-To open `run_basic.ipynb`, install JupyterLab separately or use a compatible editor. Select the Python environment in which you installed this project and use the repository root as the notebook's working directory.
+Windows (PowerShell):
 
-**The import name is `bolos`, as in the original project.** The repository directory name, `Py3bolos-master`, differs from the internal package directory name, `bolos`. Check which source file is being imported with:
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -U pip
+python -m pip install -e ".[notebook]"
+```
+
+If Windows blocks `Activate.ps1`, use `.\.venv\Scripts\python.exe` in place of `python`. The quotes around `".[notebook]"` keep the shell from treating that extra as a filename pattern.
+
+Choose the extra for the tools you need:
+
+- `".[samples]"` adds Matplotlib for the plotting samples.
+- `".[notebook]"` adds Matplotlib and ipykernel.
+- `".[validation]"` adds the dependencies used by `validate_bolsig.ipynb`.
+- `python -m pip install -e .` installs the computational library alone.
+
+To open `run_basic.ipynb`, install JupyterLab separately or use a compatible editor. Select this virtual environment as the notebook kernel and use the repository root as the notebook's working directory. Step-by-step instructions are in [EXECUTION_GUIDE_EN.md](EXECUTION_GUIDE_EN.md) and [EXECUTION_GUIDE_js.md](EXECUTION_GUIDE_js.md).
+
+**The import name is `bolos`, as in the original project.** A clone's directory name can differ from the package name. Check which source file is being imported with:
 
 ```console
 python -c "from bolos import solver; print(solver.__file__)"
@@ -40,7 +56,7 @@ python -c "from bolos import solver; print(solver.__file__)"
 
 The output should point to `bolos/solver.py` inside this project. If you move or rename the project directory, run `python -m pip install -e .` again from its new location to update the editable installation.
 
-If ty reports `Cannot resolve imported module bolos`, first check the runtime import using the command above. If the runtime import succeeds but static analysis fails, configure ty to use the same virtual environment as your interpreter. If necessary, set `root = [".", "./Py3bolos-master"]` under `[environment]` in `ty.toml`. This example assumes that the parent of this project directory is the workspace root. If this project directory itself is the workspace root, use `root = ["."]` instead.
+If ty reports `Cannot resolve imported module bolos`, first check the runtime import using the command above. If the runtime import succeeds but static analysis fails, configure ty to use the same virtual environment as your interpreter. When this repository is the workspace root, set `root = ["."]` under `[environment]` in `ty.toml`.
 
 ## Basic Usage
 
@@ -85,7 +101,7 @@ Adjust the gas composition, gas temperature, reduced electric field, and energy 
 | `validation/bolsig_comparison/` | Archived comparison results before the reconstruction-sign correction |
 | `validation/collision_sign_corrected/` | Independent integral checks and corrected-versus-legacy solver comparisons |
 | [EXECUTION_GUIDE_EN.md](EXECUTION_GUIDE_EN.md) | Detailed English execution guide |
-| [EXECUTION_GUIDE_js.md](EXECUTION_GUIDE_js.md) | Detailed Japanese execution guide, including paths for the original local environment |
+| [EXECUTION_GUIDE_js.md](EXECUTION_GUIDE_js.md) | Detailed Japanese execution guide |
 | [PORTING_NOTES.md](PORTING_NOTES.md) | Porting changes and limitations |
 | [VALIDATION.md](VALIDATION.md) / [validation_results.json](validation_results.json) | Existing validation records |
 | `docs/` | Sphinx documentation based on the original project |

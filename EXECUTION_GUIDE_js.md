@@ -4,11 +4,7 @@
 
 このガイドは、提供された Phelps の N₂・O₂ 断面積を使い、電子エネルギー分布関数（EEDF）、反応速度係数、輸送係数を計算するための説明です。
 
-対象環境は Windows / PowerShell、作業フォルダは次の場所です。
-
-```text
-C:\Users\daiko\Documents\Python_venvSystem\3.14system\Bolos_analysis
-```
+作業場所は、クローンしたリポジトリの直下です。`pyproject.toml`、`bolos/`、`Phelps/` が同じフォルダにある場所でコマンドを実行します。Windows、macOS、Linux で手順は共通で、違うのは仮想環境の作成と有効化だけです。
 
 まず既存のサンプルまたはノートブックを動かし、その後に「5. 基本的な実行プログラム」を読むと、各処理の役割を確認できます。
 
@@ -31,18 +27,17 @@ C:\Users\daiko\Documents\Python_venvSystem\3.14system\Bolos_analysis
 主な構成は次のとおりです。
 
 ```text
-Bolos_analysis/
-├─ env_bolos_analysis/                  Python 仮想環境
-└─ Py3bolos-master/                     Python 3 翻訳版（リポジトリ）
-   ├─ bolos/                           計算ライブラリ本体
-   ├─ Phelps/
-   │  ├─ Phelps_N2-O2_20261026.txt      入力する断面積
-   │  └─ N2-O2_80-20_2000Td.dat         BOLSIG+ 計算結果
-   ├─ samples/
-   │  ├─ single.py                     1条件を計算するサンプル
-   │  └─ bolsig.py                     数値表形式の BOLSIG+ 出力との比較
-   ├─ run_basic.ipynb                  実行用ノートブック
-   └─ EXECUTION_GUIDE_js.md            このガイド
+Py3bolos/                               リポジトリ直下
+├─ .venv/                               ローカルに作る Python 仮想環境
+├─ bolos/                               計算ライブラリ本体
+├─ Phelps/
+│  ├─ Phelps_N2-O2_20261026.txt         入力する断面積
+│  └─ N2-O2_80-20_2000Td.dat            BOLSIG+ 計算結果
+├─ samples/
+│  ├─ single.py                         1条件を計算するサンプル
+│  └─ bolsig.py                         数値表形式の BOLSIG+ 出力との比較
+├─ run_basic.ipynb                      実行用ノートブック
+└─ EXECUTION_GUIDE_js.md                このガイド
 ```
 
 `bolos/solver.py` は計算ライブラリです。通常は、このファイルを直接実行するのではなく、`single.py` などの実行プログラムから読み込みます。
@@ -57,65 +52,63 @@ Bolos_analysis/
 
 ## 2. Python 実行環境の確認
 
-以下の PowerShell コマンドは、作業フォルダ `Bolos_analysis` で実行します。Python の `>>>` プロンプトに入力するコードとは区別してください。
+以下のコマンドは、リポジトリ直下のターミナルで実行します。Python の `>>>` プロンプトに入力するコードとは区別してください。Python は 3.10 以上を使います。macOS と Linux では `python3`、Windows では `py -3` が、用途に合う実行ファイルです。
 
-```powershell
-Set-Location "C:\Users\daiko\Documents\Python_venvSystem\3.14system\Bolos_analysis"
+### 2.1 仮想環境を作って有効にする
+
+macOS と Linux:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
 ```
 
-### 2.1 仮想環境を有効にする
+Windows（PowerShell）:
 
 ```powershell
-.\env_bolos_analysis\Scripts\Activate.ps1
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
 
-プロンプト先頭に `(env_bolos_analysis)` が表示されます。さらに、使用する Python を確認します。
+有効化できると、プロンプト先頭に `(.venv)` が表示されます。使用する Python を確認します。
 
-```powershell
+```bash
 python -c "import sys; print(sys.executable)"
 ```
 
-出力が次のパスなら、対象の仮想環境を使っています。
+出力が、このリポジトリ内の `.venv` を指していれば、対象の仮想環境を使っています。macOS と Linux では `.venv/bin/python`、Windows では `.venv\Scripts\python.exe` です。
 
-```text
-C:\Users\daiko\Documents\Python_venvSystem\3.14system\Bolos_analysis\env_bolos_analysis\Scripts\python.exe
-```
-
-`Activate.ps1` が実行ポリシーにより拒否された場合は、仮想環境の Python を明示して実行できます。以降の `python` を次の形式に置き換えてください。
+Windows で `Activate.ps1` が実行ポリシーにより拒否された場合は、有効化を省略し、以降の `python` を次の実行ファイルに置き換えます。
 
 ```powershell
-& .\env_bolos_analysis\Scripts\python.exe -c "import sys; print(sys.executable)"
+.\.venv\Scripts\python.exe -c "import sys; print(sys.executable)"
 ```
 
-### 2.2 BOLOS を読み込めるか確認する
+### 2.2 BOLOS をインストールして読み込めるか確認する
 
-```powershell
+有効化した仮想環境で、リポジトリ直下からインストールします。
+
+```bash
+python -m pip install -U pip
+python -m pip install -e ".[notebook]"
 python -c "from bolos import solver; print(solver.__file__)"
 ```
 
-出力先が `Py3bolos-master\bolos\solver.py` になっていることを確認します。
+`-e` は、このフォルダを参照する形でのインストールです。`[notebook]` は Matplotlib と ipykernel も追加する指定です。引用符は、シェルが `.[notebook]` をファイル名の展開として扱わないために付けます。`python -m pip` と書くことで、実行に使う Python に対してインストールできます。
 
-この仮想環境には、作成時に Python 3 版を編集可能な形式でインストール済みです。別の環境を新しく作った場合などは、対象環境の Python で次を実行します。
-
-```powershell
-python -m pip install -e ".\Py3bolos-master[notebook]"
-```
-
-`-e` は、このフォルダを参照する形でのインストールです。`[notebook]` は Matplotlib と ipykernel も追加する指定です。`python -m pip` と書くことで、実行に使う Python に対してインストールできます。
+`solver.__file__` の出力が、このリポジトリ内の `bolos/solver.py` を指していることを確認します。描画だけのサンプルなら `".[samples]"`、BOLSIG+ 比較ノートブックなら `".[validation]"`、計算だけなら追加指定なしの `python -m pip install -e .` を使います。
 
 ## 3. 既存サンプルを実行する
 
+仮想環境を有効にしたあと、以降のコマンドはリポジトリ直下で実行します。パス区切りは `/` です。Windows の PowerShell でも同じ表記で実行できます。
+
 ### 3.1 そのまま実行できるコマンド
 
-```powershell
-python .\Py3bolos-master\samples\single.py .\Py3bolos-master\Phelps\Phelps_N2-O2_20261026.txt --en=100 --temp=300
+```bash
+python samples/single.py Phelps/Phelps_N2-O2_20261026.txt --en=100 --temp=300
 ```
 
-または、Python 実行ファイルを明示します。
-
-```powershell
-& .\env_bolos_analysis\Scripts\python.exe .\Py3bolos-master\samples\single.py .\Py3bolos-master\Phelps\Phelps_N2-O2_20261026.txt --en=100 --temp=300
-```
+有効化していない Windows では、`python` の代わりに `.\.venv\Scripts\python.exe` を使います。
 
 各部分の意味は次のとおりです。
 
@@ -129,28 +122,28 @@ python .\Py3bolos-master\samples\single.py .\Py3bolos-master\Phelps\Phelps_N2-O2
 
 `input` という文字そのものを入力する必要はありません。その位置に実際のファイルのパスを書きます。実行後にファイル名を入力する方式ではなく、起動時に指定する方式です。
 
-相対パスの `.` は、現在のターミナルの作業フォルダです。このコマンドを別のフォルダで実行するときは、パスも合わせて変更してください。空白のあるパスは引用符で囲みます。
+このコマンドは、現在のターミナルの作業フォルダがリポジトリ直下であることを前提にしています。別のフォルダで実行するときは、パスも合わせて変更してください。空白のあるパスは引用符で囲みます。
 
 ### 3.2 条件を変える
 
 200 Td・300 K で計算する例です。
 
-```powershell
-python .\Py3bolos-master\samples\single.py .\Py3bolos-master\Phelps\Phelps_N2-O2_20261026.txt --en=200 --temp=300
+```bash
+python samples/single.py Phelps/Phelps_N2-O2_20261026.txt --en=200 --temp=300
 ```
 
 `single.py` の混合比はコード中で N₂ = 0.8、O₂ = 0.2 に固定されています。混合比を変える場合は該当行を編集するか、ノートブックを使用してください。
 
 引数の一覧と説明は次のコマンドで表示できます。
 
-```powershell
-python .\Py3bolos-master\samples\single.py --help
+```bash
+python samples/single.py --help
 ```
 
 `--debug` を付けると、反復計算などの詳細ログが表示されます。
 
-```powershell
-python .\Py3bolos-master\samples\single.py .\Py3bolos-master\Phelps\Phelps_N2-O2_20261026.txt --en=100 --temp=300 --debug
+```bash
+python samples/single.py Phelps/Phelps_N2-O2_20261026.txt --en=100 --temp=300 --debug
 ```
 
 ### 3.3 エディタの実行ボタンとの関係
@@ -173,7 +166,7 @@ the following arguments are required: input
 
 ## 4. ノートブックを実行する
 
-1. `Py3bolos-master/run_basic.ipynb` を開きます。
+1. リポジトリ直下の `run_basic.ipynb` を開きます。
 2. カーネルに、BOLOS をインストールした Python 環境を選択します。
 3. ノートブックの作業ディレクトリをリポジトリ直下に設定します。`Path.cwd()` が `bolos/` と `Phelps/` のあるフォルダを指すことを確認してください。
 4. 最初のセルから上から順番に実行します。
@@ -217,7 +210,7 @@ BOLOS を呼び出すプログラムは、次の順番で書きます。
 平均エネルギー・輸送係数・反応速度係数の出力
 ```
 
-以下は、コードの中に条件を書く完全な例です。使用する場合は、**`Py3bolos-master` の直下に `run_basic.py` という名前で新規保存**してください。このガイドのコード例であり、`run_basic.py` 自体はガイド作成時には追加していません。
+以下は、コードの中に条件を書く完全な例です。使用する場合は、**リポジトリ直下に `run_basic.py` という名前で新規保存**してください。このガイドのコード例であり、`run_basic.py` 自体はガイド作成時には追加していません。
 
 この例では、サンプル `single.py` から独立して、ノートブックと同じ格子設定を用いています。
 
@@ -233,7 +226,7 @@ from bolos import parser, solver, grid
 
 def main():
     # 1. 入力ファイルと計算条件
-    # このプログラムを Py3bolos-master 直下に保存した場合のパスです。
+    # このプログラムをリポジトリ直下に保存した場合のパスです。
     script_dir = Path(__file__).resolve().parent
     input_file = script_dir / "Phelps" / "Phelps_N2-O2_20261026.txt"
 
@@ -308,10 +301,10 @@ if __name__ == "__main__":
     main()
 ```
 
-保存後、作業フォルダ `Bolos_analysis` から実行します。
+保存後、リポジトリ直下から実行します。
 
-```powershell
-python .\Py3bolos-master\run_basic.py
+```bash
+python run_basic.py
 ```
 
 この例では、入力ファイルをコード中で指定しているため、コマンドに断面積ファイル名を付ける必要はありません。
@@ -594,14 +587,14 @@ print("BOLOS内部の規格化値:", bsolver._norm(eedf))
 
 まず、実際の Python を確認します。
 
-```powershell
+```bash
 python -c "import sys; print(sys.executable)"
 ```
 
-対象の仮想環境でなければ、`env_bolos_analysis` の Python を選択します。対象環境でも import できない場合は、その Python でインストールします。
+出力がリポジトリ内の `.venv` でなければ、「2.1」の仮想環境を有効にします。対象環境でも import できない場合は、リポジトリ直下でその Python を使ってインストールします。
 
-```powershell
-& .\env_bolos_analysis\Scripts\python.exe -m pip install -e ".\Py3bolos-master[notebook]"
+```bash
+python -m pip install -e ".[notebook]"
 ```
 
 ### `the following arguments are required: input`
@@ -616,12 +609,21 @@ python -c "import sys; print(sys.executable)"
 
 指定したファイルの場所と、現在の作業フォルダを確認します。
 
-```powershell
-Get-Location
-Test-Path .\Py3bolos-master\Phelps\Phelps_N2-O2_20261026.txt
+macOS と Linux:
+
+```bash
+pwd
+test -f Phelps/Phelps_N2-O2_20261026.txt && echo yes
 ```
 
-`Test-Path` が `False` の場合は、作業フォルダまたは指定パスを修正します。
+Windows（PowerShell）:
+
+```powershell
+Get-Location
+Test-Path .\Phelps\Phelps_N2-O2_20261026.txt
+```
+
+ファイルが無いと表示された場合は、作業フォルダをリポジトリ直下にするか、指定パスを修正します。
 
 ### `KeyError: 'N2'` または `KeyError: 'O2'`
 

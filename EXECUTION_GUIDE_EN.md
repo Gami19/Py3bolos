@@ -11,11 +11,10 @@ This guide explains how to calculate electron energy distribution functions
 (EEDFs), reaction rate coefficients, and transport coefficients using the
 provided Phelps N2/O2 cross sections.
 
-The examples use Windows PowerShell. The original working directory is:
-
-```text
-C:\Users\daiko\Documents\Python_venvSystem\3.14system\Bolos_analysis
-```
+Work in the root of the cloned repository, the directory that contains
+`pyproject.toml`, `bolos/`, and `Phelps/`. The procedure is the same on
+Windows, macOS, and Linux. Only virtual-environment creation and activation
+differ.
 
 Run an existing sample or the notebook first. Then read Section 5 to
 understand the role of each step in a complete calculation.
@@ -39,18 +38,17 @@ understand the role of each step in a complete calculation.
 The relevant layout is:
 
 ```text
-Bolos_analysis/
-├─ env_bolos_analysis/                  Python virtual environment
-└─ Py3bolos-master/                     Python 3 port (repository)
-   ├─ bolos/                            Computational library
-   ├─ Phelps/
-   │  ├─ Phelps_N2-O2_20261026.txt      Input cross sections
-   │  └─ N2-O2_80-20_2000Td.dat         BOLSIG+ output
-   ├─ samples/
-   │  ├─ single.py                      Single-condition calculation
-   │  └─ bolsig.py                      Comparison with tabular BOLSIG+ output
-   ├─ run_basic.ipynb                   Execution notebook
-   └─ EXECUTION_GUIDE_EN.md             This guide
+Py3bolos/                               Repository root
+├─ .venv/                               Local Python virtual environment
+├─ bolos/                               Computational library
+├─ Phelps/
+│  ├─ Phelps_N2-O2_20261026.txt         Input cross sections
+│  └─ N2-O2_80-20_2000Td.dat            BOLSIG+ output
+├─ samples/
+│  ├─ single.py                         Single-condition calculation
+│  └─ bolsig.py                         Comparison with tabular BOLSIG+ output
+├─ run_basic.ipynb                      Execution notebook
+└─ EXECUTION_GUIDE_EN.md                This guide
 ```
 
 `bolos/solver.py` is the computational library. Normally, do not run it
@@ -68,70 +66,77 @@ cross-section input.
 
 ## 2. Check the Python environment
 
-Run the following PowerShell commands from `Bolos_analysis`. PowerShell
-commands are different from code entered at the Python `>>>` prompt.
+Run the following commands in a terminal at the repository root. They are
+different from code entered at the Python `>>>` prompt. Use Python 3.10 or
+later. On macOS and Linux the executable is often `python3`; on Windows,
+`py -3` selects a Python 3 installation.
 
-```powershell
-Set-Location "C:\Users\daiko\Documents\Python_venvSystem\3.14system\Bolos_analysis"
+### 2.1 Create and activate a virtual environment
+
+macOS and Linux:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
 ```
 
-### 2.1 Activate the virtual environment
+Windows (PowerShell):
 
 ```powershell
-.\env_bolos_analysis\Scripts\Activate.ps1
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
 
-The prompt should start with `(env_bolos_analysis)`. Check the Python
-executable:
+The prompt should start with `(.venv)`. Check the Python executable:
 
-```powershell
+```bash
 python -c "import sys; print(sys.executable)"
 ```
 
-The output should point to:
+The output should point inside this repository's `.venv`: `.venv/bin/python`
+on macOS and Linux, or `.venv\Scripts\python.exe` on Windows.
 
-```text
-C:\Users\daiko\Documents\Python_venvSystem\3.14system\Bolos_analysis\env_bolos_analysis\Scripts\python.exe
-```
-
-If `Activate.ps1` is blocked by the execution policy, invoke the virtual
-environment's Python explicitly:
+If Windows blocks `Activate.ps1` because of the execution policy, skip
+activation and use that executable in place of `python`:
 
 ```powershell
-& .\env_bolos_analysis\Scripts\python.exe -c "import sys; print(sys.executable)"
+.\.venv\Scripts\python.exe -c "import sys; print(sys.executable)"
 ```
 
-### 2.2 Check the BOLOS import
+### 2.2 Install BOLOS and check the import
 
-```powershell
+From the repository root, with the virtual environment active:
+
+```bash
+python -m pip install -U pip
+python -m pip install -e ".[notebook]"
 python -c "from bolos import solver; print(solver.__file__)"
 ```
 
-Confirm that the path points to `Py3bolos-master\bolos\solver.py`.
-The original environment contains an editable installation of the Python 3
-port. If you create another environment, install the project with:
-
-```powershell
-python -m pip install -e ".\Py3bolos-master[notebook]"
-```
-
 `-e` installs the project in editable mode. `[notebook]` also installs
-Matplotlib and ipykernel. Using `python -m pip` ensures that packages are
-installed into the Python environment used by the command.
+Matplotlib and ipykernel. The quotes keep the shell from treating
+`.[notebook]` as a filename pattern. Using `python -m pip` installs into the
+Python environment used by the command.
+
+Confirm that `solver.__file__` points to `bolos/solver.py` inside this
+repository. Use `".[samples]"` for the plotting samples, `".[validation]"`
+for the BOLSIG+ comparison notebook, or `python -m pip install -e .` for
+calculations alone.
 
 ## 3. Run the existing samples
 
+After activating the virtual environment, run the remaining commands from the
+repository root. The path separator is `/`. The same form works in Windows
+PowerShell.
+
 ### 3.1 Run one calculation
 
-```powershell
-python .\Py3bolos-master\samples\single.py .\Py3bolos-master\Phelps\Phelps_N2-O2_20261026.txt --en=100 --temp=300
+```bash
+python samples/single.py Phelps/Phelps_N2-O2_20261026.txt --en=100 --temp=300
 ```
 
-Or specify the Python executable:
-
-```powershell
-& .\env_bolos_analysis\Scripts\python.exe .\Py3bolos-master\samples\single.py .\Py3bolos-master\Phelps\Phelps_N2-O2_20261026.txt --en=100 --temp=300
-```
+On Windows without activation, use `.\.venv\Scripts\python.exe` instead of
+`python`.
 
 | Argument | Meaning |
 |---|---|
@@ -142,16 +147,16 @@ Or specify the Python executable:
 | `--temp=300` | Gas temperature T = 300 K |
 
 Do not type the literal word `input`; replace it with the actual file path.
-The path is supplied when the program starts. `.` means the current terminal
-directory, so adjust relative paths if you run the command elsewhere. Quote
-paths containing spaces.
+The path is supplied when the program starts. These commands assume the
+terminal's current directory is the repository root. Adjust the paths if you
+run them elsewhere, and quote paths that contain spaces.
 
 ### 3.2 Change the conditions
 
 Calculate at 200 Td and 300 K:
 
-```powershell
-python .\Py3bolos-master\samples\single.py .\Py3bolos-master\Phelps\Phelps_N2-O2_20261026.txt --en=200 --temp=300
+```bash
+python samples/single.py Phelps/Phelps_N2-O2_20261026.txt --en=200 --temp=300
 ```
 
 The N2/O2 fractions in `single.py` are fixed at N2 = 0.8 and O2 = 0.2.
@@ -159,14 +164,14 @@ Edit the corresponding lines or use the notebook to change the mixture.
 
 Display all command-line options with:
 
-```powershell
-python .\Py3bolos-master\samples\single.py --help
+```bash
+python samples/single.py --help
 ```
 
 Add `--debug` to display detailed iteration logs:
 
-```powershell
-python .\Py3bolos-master\samples\single.py .\Py3bolos-master\Phelps\Phelps_N2-O2_20261026.txt --en=100 --temp=300 --debug
+```bash
+python samples/single.py Phelps/Phelps_N2-O2_20261026.txt --en=100 --temp=300 --debug
 ```
 
 ### 3.3 Editor run buttons
@@ -193,7 +198,7 @@ original block-format comparison script is local-only and is not included.
 
 ## 4. Run the notebook
 
-1. Open `Py3bolos-master/run_basic.ipynb`.
+1. Open `run_basic.ipynb` at the repository root.
 2. Select the Python environment where BOLOS is installed as the kernel.
 3. Set the notebook working directory to the repository root. Check that
    `Path.cwd()` points to the directory containing `bolos/` and `Phelps/`.
@@ -241,8 +246,8 @@ Optionally rebuild the grid and calculate again
 Print mean energy, transport coefficients, and rates
 ```
 
-Save the following complete example as `run_basic.py` directly under
-`Py3bolos-master`. The file is an example and is not included by default.
+Save the following complete example as `run_basic.py` directly under the
+repository root. The file is an example and is not included by default.
 
 ```python
 from pathlib import Path
@@ -324,10 +329,10 @@ if __name__ == "__main__":
     main()
 ```
 
-Run it from `Bolos_analysis`:
+Run it from the repository root:
 
-```powershell
-python .\Py3bolos-master\run_basic.py
+```bash
+python run_basic.py
 ```
 
 The input file is set inside the program, so no cross-section path is needed
@@ -620,15 +625,16 @@ energy-weighted normalization.
 
 Check the Python executable:
 
-```powershell
+```bash
 python -c "import sys; print(sys.executable)"
 ```
 
-Select the intended virtual environment. If it still cannot import BOLOS,
-install the project with that Python:
+If the output is not inside this repository's `.venv`, activate the
+environment from Section 2.1. If that environment still cannot import BOLOS,
+install the project from the repository root:
 
-```powershell
-& .\env_bolos_analysis\Scripts\python.exe -m pip install -e ".\Py3bolos-master[notebook]"
+```bash
+python -m pip install -e ".[notebook]"
 ```
 
 ### `the following arguments are required: input`
@@ -642,14 +648,24 @@ single calculation, or the notebook for the supplied BOLSIG+ comparison data.
 
 ### `FileNotFoundError`
 
-Check the working directory and input path:
+Check the working directory and input path.
+
+macOS and Linux:
+
+```bash
+pwd
+test -f Phelps/Phelps_N2-O2_20261026.txt && echo yes
+```
+
+Windows (PowerShell):
 
 ```powershell
 Get-Location
-Test-Path .\Py3bolos-master\Phelps\Phelps_N2-O2_20261026.txt
+Test-Path .\Phelps\Phelps_N2-O2_20261026.txt
 ```
 
-If `Test-Path` returns `False`, correct the working directory or path.
+If the file is reported missing, change to the repository root or correct the
+path.
 
 ### `KeyError: 'N2'` or `KeyError: 'O2'`
 

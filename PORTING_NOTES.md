@@ -31,11 +31,11 @@
 
 ## インストールと実行
 
-リポジトリ直下で、使用する Python 環境から実行します。
+リポジトリ直下で、使用する Python 環境から実行します。仮想環境の作成と有効化は OS ごとに異なります。手順は [EXECUTION_GUIDE_js.md](EXECUTION_GUIDE_js.md) と [EXECUTION_GUIDE_EN.md](EXECUTION_GUIDE_EN.md) を参照してください。有効化後のインストールと実行は共通です。
 
-```powershell
+```bash
 python -m pip install -e ".[notebook]"
-python .\samples\single.py .\Phelps\Phelps_N2-O2_20261026.txt --en=100 --temp=300
+python samples/single.py Phelps/Phelps_N2-O2_20261026.txt --en=100 --temp=300
 ```
 
 通常の利用方法は元コードと同じ `from bolos import parser, solver, grid` です。
